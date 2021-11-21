@@ -1,8 +1,11 @@
 import time
+import urllib.parse
+
+from telegram import ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
+
 from database import Database
 from telegramBot import TelegramBot
 from telegramChatBot import TelegramChatBot
-from telegram import ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def main():
@@ -34,15 +37,22 @@ def main():
         # Checking for new orders
         opened_orders = telegram_chat_bot.get_opened_orders()
         for order in opened_orders:
-            message = f'<b>Новый заказ!</b> №{order.get("order_id")}\n' \
-                      f'<b>*</b> {order.get("from")} -> {order.get("to")}\n' \
-                      f'<b>*</b> Время: {order.get("time")}\n' \
-                      f'<b>*</b> Связь: {order.get("contacts")}\n' \
-                      f'<b>*</b> @{order.get("user_name")}'
+            from_message = order.get('from')
+            to_message = order.get('to')
+            order_from = f'<a href="https://yandex.ru/maps/?l=map&text={urllib.parse.quote(from_message)}">{from_message}</a>'
+            order_to = f'<a href="https://yandex.ru/maps/?l=map&text={urllib.parse.quote(to_message)}">{to_message}</a>'
+            order_from_to = f'<a href="https://yandex.ru/maps/?l=map&text={urllib.parse.quote(to_message)}">🌍 Маршрут</a>'
+            message = f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
+                      f'{order_from} ➡️ {order_to}\n' \
+                      f'{order_from_to}\n' \
+                      f'🕓 Время: {order.get("time")}\n' \
+                      f'📞 Связь: {order.get("contacts")}\n' \
+                      f'💬 @{order.get("user_name")}'
             telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,
                                                        text=message,
                                                        parse_mode=ParseMode.HTML,
-                                                       reply_markup=reply_markup)
+                                                       reply_markup=reply_markup,
+                                                       disable_web_page_preview=True)
             telegram_chat_bot.set_notification_flag(order.get('order_id'))
 
 

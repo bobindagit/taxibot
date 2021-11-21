@@ -122,7 +122,7 @@ class TelegramChatBot:
 
     def accept_order(self, update, context) -> None:
         message = update.effective_message.text_html
-        order_id = message.partition('</b>')[2].partition('\n')[0].replace('№', '')
+        order_id = message.partition('</b>')[2].partition('\n')[0].replace(' ‼️ №', '')
         driver_name = update.effective_user.name
         # Updating order status
         value_to_update = {"$set": {'status': "accepted"}}
@@ -136,7 +136,8 @@ class TelegramChatBot:
         query.edit_message_text(
             text=f'{message}\n\n'
                  f'<b>Принят! Водитель: {driver_name}</b>',
-            parse_mode=ParseMode.HTML)
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True)
 
 
 if __name__ == '__main__':
