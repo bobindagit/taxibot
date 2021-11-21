@@ -98,12 +98,15 @@ class OrdersManager:
     def generate_order_message(self, order: dict) -> str:
         return f'{order.get(TAXI_FROM)} -> {order.get(TAXI_TO)} ({order.get(TAXI_TIME)})'
 
-    def create_order(self, user_id: str) -> str:
+    def create_order(self, user_id: str, user_name: str) -> str:
         new_order = {
             'order_id': self.generate_new_order_id(),
             'user_id': user_id,
+            'user_name': user_name,
             'status': 'new',
-            'notification_sent': False,
+            'driver_name': '',
+            'drivers_notification_sent': False,
+            'user_notification_sent': False,
             TAXI_FROM: '',
             TAXI_TO: '',
             TAXI_TIME: '',
@@ -116,7 +119,8 @@ class OrdersManager:
         if self.db_orders.count() == 0:
             return 1
         else:
-            return self.db_orders.findOne().sort({'_id':-1}).limit(1)
+            all_orders = self.db_orders.find()
+            return all_orders[all_orders.count() - 1].get('order_id') + 1
 
 
 class TelegramMenu:
@@ -166,7 +170,8 @@ class TelegramMenu:
     def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
 
         if current_step == TAXI_FROM:
-            order_id = self.orders_manager.create_order(user_id)
+            user_name = self.user_manager.get_user_field(user_id, 'link')
+            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
             self.user_manager.set_current_order_id(user_id, order_id)
             self.orders_manager.set_order_field(order_id, TAXI_FROM, user_message)
             self.user_manager.set_current_step(TAXI_TO, user_id)

@@ -1,12 +1,11 @@
-import time
 import json
 import logging
 from telegram import Update, Chat, ChatMember, ParseMode, ChatMemberUpdated
 from telegram.ext import (
     Updater,
-    CommandHandler,
     CallbackContext,
     ChatMemberHandler,
+    CallbackQueryHandler
 )
 
 
@@ -25,7 +24,7 @@ class TelegramChatBot:
         with open('settings.json', 'r') as file:
             file_data = json.load(file)
             bot_token = file_data.get('bot_token_drivers')
-            bot_chat_id = file_data.get('bot_group_id')
+            self.bot_chat_id = file_data.get('bot_group_id')
             file.close()
 
         self.database = database
@@ -36,20 +35,13 @@ class TelegramChatBot:
 
         # Handlers
         self.dispatcher.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+        # Menu handlers
+        self.dispatcher.add_handler(CallbackQueryHandler(self.accept_order, pattern='accept_order'))
 
         # Starting the bot
         self.updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
         print('Telegram chat bot initialized!')
-
-        # Loop for orders request
-        while True:
-            time.sleep(5)
-            opened_orders = self.get_opened_orders()
-            for order in opened_orders:
-                message = f'Новый заказ!\n{order.get("from")} -> {order.get("to")} к {order.get("time")}\nСвязь:{order.get("contacts")}'
-                self.updater.bot.sendMessage(chat_id=bot_chat_id, text=message)
-                self.set_notification_flag(order.get('order_id'))
 
     def track_chats(self, update: Update, context: CallbackContext) -> None:
 
@@ -122,11 +114,29 @@ class TelegramChatBot:
         return was_member, is_member
 
     def get_opened_orders(self) -> list:
-        return self.database.db_orders.find({'status': 'open', 'notification_sent': False})
+        return self.database.db_orders.find({'status': 'open', 'drivers_notification_sent': False})
 
     def set_notification_flag(self, order_id: str) -> None:
-        value_to_update = {"$set": {'notification_sent': True}}
+        value_to_update = {"$set": {'drivers_notification_sent': True}}
         self.database.db_orders.update({'order_id': order_id}, value_to_update)
+
+    def accept_order(self, update, context) -> None:
+        message = update.effective_message.text_html
+        order_id = message.partition('</b>')[2].partition('\n')[0].replace('№', '')
+        driver_name = update.effective_user.name
+        # Updating order status
+        value_to_update = {"$set": {'status': "accepted"}}
+        self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)
+        # Updating order driver's name
+        value_to_update = {"$set": {'driver_name': driver_name}}
+        self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)
+        # Message to chat
+        query = update.callback_query
+        query.answer()
+        query.edit_message_text(
+            text=f'{message}\n\n'
+                 f'<b>Принят! Водитель: {driver_name}</b>',
+            parse_mode=ParseMode.HTML)
 
 
 if __name__ == '__main__':

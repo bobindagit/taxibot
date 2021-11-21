@@ -15,7 +15,6 @@ class Database:
 
         # Getting all resources
         self.db_user_info = client.taxi_bot['taxi_user_info']
-        self.db_driver_info = client.taxi_bot['taxi_driver_info']
         self.db_orders = client.taxi_bot['taxi_orders']
 
 
