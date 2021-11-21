@@ -25,7 +25,7 @@ def main():
         # Checking status of orders
         accepted_orders = database.db_orders.find({'status': 'accepted', 'user_notification_sent': False})
         for order in accepted_orders:
-            order_info = f'Ваш заказ {order.get("from")} -> {order.get("to")} <b>принят</b>!\nВаш водитель: {order.get("driver_name")}'
+            order_info = f'Ваш заказ {order.get("from")} -> {order.get("to")} <b>принят</b>!\nВодитель: {order.get("driver_name")}'
             telegram_bot.updater.bot.send_message(chat_id=order.get('user_id'),
                                                   text=order_info,
                                                   parse_mode=ParseMode.HTML)
@@ -35,7 +35,8 @@ def main():
         opened_orders = telegram_chat_bot.get_opened_orders()
         for order in opened_orders:
             message = f'<b>Новый заказ!</b> №{order.get("order_id")}\n' \
-                      f'<b>*</b> {order.get("from")} -> {order.get("to")} к {order.get("time")}\n' \
+                      f'<b>*</b> {order.get("from")} -> {order.get("to")}\n' \
+                      f'<b>*</b> Время: {order.get("time")}\n' \
                       f'<b>*</b> Связь: {order.get("contacts")}\n' \
                       f'<b>*</b> @{order.get("user_name")}'
             telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,

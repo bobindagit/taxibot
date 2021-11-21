@@ -1,9 +1,10 @@
 import json
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from telegram import KeyboardButton, ReplyKeyboardMarkup
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ParseMode
 
 
 # STEP NAMES
+QUESTION = 'question'
 TAXI_FROM = 'from'
 TAXI_TO = 'to'
 TAXI_TIME = 'time'
@@ -134,7 +135,7 @@ class TelegramMenu:
         main_keyboard = [
             [KeyboardButton(text='Заказать такси'),
              KeyboardButton(text='Активные заказы'),
-             KeyboardButton(text='Контакты')]
+             KeyboardButton(text='Вопрос / Предложение')]
         ]
         self.reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
@@ -158,9 +159,10 @@ class TelegramMenu:
                 for open_order in open_orders:
                     context.bot.send_message(chat_id=update.effective_chat.id,
                                              text=self.orders_manager.generate_order_message(open_order))
-        elif user_message == 'КОНТАКТЫ':
+        elif user_message == 'ВОПРОС / ПРЕДЛОЖЕНИЕ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Создатель бота - @bobtb")
+                                     text="Напишите Ваш вопрос или предложение")
+            self.user_manager.set_current_step(QUESTION, user_id)
         elif len(current_step) != 0:
             self.message_handler(user_id, user_message, current_step, context)
         else:
@@ -169,7 +171,19 @@ class TelegramMenu:
 
     def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
 
-        if current_step == TAXI_FROM:
+        if current_step == QUESTION:
+            user_name = self.user_manager.get_user_field(user_id, 'link').replace('https://t.me/', '@')
+            question = f'<b>Поступил вопрос/предложение от {user_name}</b>\n\n' \
+                       f'{user_message}'
+            # bobtb
+            context.bot.send_message(chat_id='360152058',
+                                     text=question,
+                                     parse_mode=ParseMode.HTML)
+            # metallity
+            context.bot.send_message(chat_id='496337433',
+                                     text=question,
+                                     parse_mode=ParseMode.HTML)
+        elif current_step == TAXI_FROM:
             user_name = self.user_manager.get_user_field(user_id, 'link')
             order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
             self.user_manager.set_current_order_id(user_id, order_id)
