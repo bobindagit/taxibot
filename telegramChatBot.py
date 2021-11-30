@@ -139,6 +139,12 @@ class TelegramChatBot:
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True)
 
+        # Sending copy of order info to the driver
+        self.updater.bot.send_message(chat_id=update.effective_user.id,
+                                      text=message.replace('Новый заказ', 'Заказ'),
+                                      parse_mode=ParseMode.HTML,
+                                      disable_web_page_preview=True)
+
 
 if __name__ == '__main__':
     print('Only for import!')

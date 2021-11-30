@@ -13,7 +13,6 @@ from telegramChatBot import TelegramChatBot
 
 
 def main():
-
     # Map.md Token
     with open('settings.json', 'r') as file:
         file_data = json.load(file)
@@ -47,27 +46,36 @@ def main():
         # Checking for new orders
         opened_orders = telegram_chat_bot.get_opened_orders()
         for order in opened_orders:
-            from_message = order.get('from')
-            to_message = order.get('to')
-            order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
-            order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
-            order_from_to = f'<a href="{generate_route_url(from_message, to_message, mapmd_token)}">🌍 Маршрут</a>'
-            message = f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
-                      f'{order_from} ➡️ {order_to}\n' \
-                      f'{order_from_to}\n' \
-                      f'🕓 Время: {order.get("time")}\n' \
-                      f'📞 Связь: {order.get("contacts")}\n' \
-                      f'💬 @{order.get("user_name")}'
+
+            message_for_drivers = generate_message_for_drivers(order, mapmd_token)
+
+            # Message to drivers chat
             telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,
-                                                       text=message,
+                                                       text=message_for_drivers,
                                                        parse_mode=ParseMode.HTML,
                                                        reply_markup=reply_markup,
                                                        disable_web_page_preview=True)
+
             telegram_chat_bot.set_notification_flag(order.get('order_id'))
 
 
-def generate_address_url(address: str) -> str:
+def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
 
+    from_message = order.get('from')
+    to_message = order.get('to')
+    order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
+    order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
+    order_from_to = f'<a href="{generate_route_url(from_message, to_message, mapmd_token)}">🌍 Маршрут</a>'
+
+    return f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
+           f'{order_from} ➡️ {order_to}\n' \
+           f'{order_from_to}\n' \
+           f'🕓 Время: {order.get("time")}\n' \
+           f'📞 Связь: {order.get("contacts")}\n' \
+           f'💬 @{order.get("user_name")}'
+
+
+def generate_address_url(address: str) -> str:
     if address.find('CHISINAU') == -1:
         address = 'Chisinau, ' + address
 
@@ -75,7 +83,6 @@ def generate_address_url(address: str) -> str:
 
 
 def generate_route_url(from_message: str, to_message: str, token: str) -> str:
-
     from_structure = get_address_structure(from_message, token)
     from_lat = from_structure.get('latitude')
     from_lon = from_structure.get('longitude')
@@ -88,7 +95,6 @@ def generate_route_url(from_message: str, to_message: str, token: str) -> str:
 
 
 def get_address_structure(address: str, token: str) -> dict:
-
     url = f'https://map.md/api/companies/webmap/search?q={address}'
     headers = {'Content-Type': 'application/json'}
     request = requests.get(url=url,
