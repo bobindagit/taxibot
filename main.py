@@ -32,31 +32,40 @@ def main():
 
     # Main loop
     while True:
-        time.sleep(5)
         # Telegram USER bot
         # Checking status of orders
         accepted_orders = database.db_orders.find({'status': 'accepted', 'user_notification_sent': False})
         for order in accepted_orders:
-            order_info = f'Ваш заказ {order.get("from")} -> {order.get("to")} <b>принят</b>!\nВодитель: {order.get("driver_name")}'
+            order_info = f'✅ Ваш заказ {order.get("from")} -> {order.get("to")} <b>ПРИНЯТ</b>!\n🚕 Водитель: {order.get("driver_name")}'
             telegram_bot.updater.bot.send_message(chat_id=order.get('user_id'),
                                                   text=order_info,
                                                   parse_mode=ParseMode.HTML)
             telegram_bot.orders_manager.set_order_field(order.get('order_id'), 'user_notification_sent', True)
         # Telegram DRIVERS bot
         # Checking for new orders
-        opened_orders = telegram_chat_bot.get_opened_orders()
+        opened_orders = telegram_chat_bot.get_orders('open')
         for order in opened_orders:
 
             message_for_drivers = generate_message_for_drivers(order, mapmd_token)
 
             # Message to drivers chat
-            telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,
-                                                       text=message_for_drivers,
-                                                       parse_mode=ParseMode.HTML,
-                                                       reply_markup=reply_markup,
-                                                       disable_web_page_preview=True)
-
-            telegram_chat_bot.set_notification_flag(order.get('order_id'))
+            message_sent = telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,
+                                                                      text=message_for_drivers,
+                                                                      parse_mode=ParseMode.HTML,
+                                                                      reply_markup=reply_markup,
+                                                                      disable_web_page_preview=True)
+            # Update info of the order
+            order_id = order.get('order_id')
+            telegram_bot.orders_manager.set_order_field(order_id, 'message_id', message_sent.message_id)
+            telegram_bot.orders_manager.set_order_field(order_id, 'drivers_notification_sent', True)
+        # Checking for declined orders
+        declined_orders = telegram_chat_bot.get_orders('declined')
+        for order in declined_orders:
+            telegram_chat_bot.updater.bot.edit_message_text(chat_id=telegram_chat_bot.bot_chat_id,
+                                                            message_id=order.get('message_id'),
+                                                            text='❌ <b>ЗАКАЗ ОТМЕНЕН</b> ❌',
+                                                            parse_mode=ParseMode.HTML)
+            telegram_bot.orders_manager.set_order_field(order.get('order_id'), 'drivers_notification_declined_sent', True)
 
 
 def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
@@ -65,11 +74,10 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
     to_message = order.get('to')
     order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
     order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
-    order_from_to = f'<a href="{generate_route_url(from_message, to_message, mapmd_token)}">🌍 Маршрут</a>'
+    order_from_to = f'<a href="{generate_route_url(from_message, to_message, mapmd_token)}"> ➡️ </a>'
 
     return f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
-           f'{order_from} ➡️ {order_to}\n' \
-           f'{order_from_to}\n' \
+           f'{order_from} {order_from_to} {order_to}\n' \
            f'🕓 Время: {order.get("time")}\n' \
            f'📞 Связь: {order.get("contacts")}\n' \
            f'💬 @{order.get("user_name")}'
@@ -103,11 +111,17 @@ def get_address_structure(address: str, token: str) -> dict:
 
     if request.status_code == 200:
         request_json = request.json()
-        centroid = request_json.get('selected').get('centroid')
-        return {
-            'latitude': centroid.get('lat'),
-            'longitude': centroid.get('lon')
-        }
+        try:
+            centroid = request_json.get('selected').get('centroid')
+            return {
+                'latitude': centroid.get('lat'),
+                'longitude': centroid.get('lon')
+            }
+        except:
+            return {
+                'latitude': 0,
+                'longitude': 0
+            }
     else:
         return {
             'latitude': 0,

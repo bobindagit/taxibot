@@ -113,12 +113,12 @@ class TelegramChatBot:
 
         return was_member, is_member
 
-    def get_opened_orders(self) -> list:
-        return self.database.db_orders.find({'status': 'open', 'drivers_notification_sent': False})
-
-    def set_notification_flag(self, order_id: str) -> None:
-        value_to_update = {"$set": {'drivers_notification_sent': True}}
-        self.database.db_orders.update({'order_id': order_id}, value_to_update)
+    def get_orders(self, status_name: str) -> list:
+        if status_name == 'declined':
+            flag_type = 'drivers_notification_declined_sent'
+        else:
+            flag_type = 'drivers_notification_sent'
+        return self.database.db_orders.find({'status': status_name, flag_type: False})
 
     def accept_order(self, update, context) -> None:
         message = update.effective_message.text_html
