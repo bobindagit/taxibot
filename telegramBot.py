@@ -39,6 +39,7 @@ class TelegramBot:
         self.dispatcher.add_handler(CommandHandler('start', handlers.start))
         self.dispatcher.add_handler(CommandHandler('stop', handlers.stop))
         self.dispatcher.add_handler(MessageHandler(Filters.text, menu.menu_message))
+        self.dispatcher.add_handler(MessageHandler(Filters.location, menu.location_message))
         self.dispatcher.add_handler(MessageHandler(Filters.command, handlers.unknown))
 
         self.dispatcher.add_handler(CallbackQueryHandler(self.orders_manager.decline_order, pattern='decline_order'))
@@ -139,6 +140,7 @@ class TelegramMenu:
         main_keyboard = [
             [KeyboardButton(text='Заказать такси'),
              KeyboardButton(text='Активные заказы'),
+             KeyboardButton(text='Цены'),
              KeyboardButton(text='Вопрос / Предложение')]
         ]
         self.reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True, one_time_keyboard=False)
@@ -152,7 +154,7 @@ class TelegramMenu:
 
         if user_message == 'ЗАКАЗАТЬ ТАКСИ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Откуда Вас забрать?")
+                                     text='Откуда Вас забрать?')
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_FROM)
         elif user_message == 'АКТИВНЫЕ ЗАКАЗЫ':
             open_orders = self.orders_manager.get_open_orders(user_id)
@@ -168,15 +170,36 @@ class TelegramMenu:
                     context.bot.send_message(chat_id=update.effective_chat.id,
                                              text=self.orders_manager.generate_order_message(open_order),
                                              reply_markup=reply_markup)
+        elif user_message == 'ЦЕНЫ':
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text='❇️ Между районами - <b>40 лей</b>\n'
+                                          '❇️ Через район - <b>60 лей</b>\n'
+                                          '❇️ Загород - <b>5 лей/км</b>',
+                                     parse_mode=ParseMode.HTML)
         elif user_message == 'ВОПРОС / ПРЕДЛОЖЕНИЕ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Напишите Ваш вопрос или предложение")
+                                     text='Напишите Ваш вопрос или предложение')
             self.user_manager.set_user_field(user_id, 'current_step', QUESTION)
         elif len(current_step) != 0:
             self.message_handler(user_id, user_message, current_step, context)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Я не знаю такой команды")
+                                     text='Я не знаю такой команды')
+
+    def location_message(self, update, context) -> None:
+
+        user_id = update.effective_chat.id
+        location = update.message.location
+
+        current_step = self.user_manager.get_user_field(user_id, 'current_step')
+
+        latitude = location.latitude
+        longitude = location.longitude
+
+        if current_step == TAXI_FROM:
+            pass
+        elif current_step == TAXI_TO:
+            pass
 
     def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
 
@@ -199,19 +222,19 @@ class TelegramMenu:
             self.orders_manager.set_order_field(order_id, TAXI_FROM, user_message)
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
             context.bot.send_message(chat_id=user_id,
-                                     text="Куда Вас отвезти?")
+                                     text='Куда Вас отвезти?')
         elif current_step == TAXI_TO:
             order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
             self.orders_manager.set_order_field(order_id, TAXI_TO, user_message)
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
             context.bot.send_message(chat_id=user_id,
-                                     text="Во сколько Вас забрать? (Пример: 17:30)")
+                                     text='Во сколько Вас забрать? (Пример: 17:30)')
         elif current_step == TAXI_TIME:
             order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
             self.orders_manager.set_order_field(order_id, TAXI_TIME, user_message)
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_CONTACT)
             context.bot.send_message(chat_id=user_id,
-                                     text="Как с Вами связаться?")
+                                     text='Как с Вами связаться?')
         elif current_step == TAXI_CONTACT:
             order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
             self.orders_manager.set_order_field(order_id, TAXI_CONTACT, user_message)
@@ -223,7 +246,7 @@ class TelegramMenu:
             self.user_manager.set_user_field(user_id, 'contacts', current_contacts)
             self.orders_manager.set_order_field(order_id, 'status', 'open')
             context.bot.send_message(chat_id=user_id,
-                                     text="Заявка отправлена! Ожидайте ответа")
+                                     text='🔔 Заявка отправлена! Ожидайте ответа...')
 
 
 class TelegramHandlers:
@@ -247,8 +270,12 @@ class TelegramHandlers:
         self.user_manager.add_user(user_info)
 
         context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="Привет! С моей помощью можно удобно заказать такси!",
-                                 reply_markup=self.menu.reply_markup)
+                                 text=f'👋 <b>Привет, {current_user.full_name}!</b> 👋\n\n'
+                                      f'🚕 С моей помощью можно удобно заказать такси\n'
+                                      f'❓ <i>Есть вопрос или предложение? Связаться с администрацией можно по соответствующей кнопке</i>\n\n'
+                                      f'📣 Хочешь быть в команде водителей? Свяжись с нами',
+                                 reply_markup=self.menu.reply_markup,
+                                 parse_mode=ParseMode.HTML)
 
     def stop(self, update, context) -> None:
 
