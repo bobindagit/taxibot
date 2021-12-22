@@ -20,7 +20,7 @@ def main():
 
     database = Database()
 
-    telegram_bot = TelegramBot(database)
+    telegram_bot = TelegramBot(database, mapmd_token)
     telegram_chat_bot = TelegramChatBot(database)
 
     # Menu
@@ -71,9 +71,27 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
 
     from_message = order.get('from')
     to_message = order.get('to')
-    order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
-    order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
-    order_from_to = f'<a href="{generate_route_url(from_message, to_message, mapmd_token)}"> ➡️ </a>'
+
+    from_location = order.get('from_location')
+    to_location = order.get('to_location')
+
+    from_geo = len(from_location) != 0
+    to_geo = len(to_location) != 0
+
+    # Checking if we got addresses from geolocation
+    if from_geo:
+        from_message = from_message.replace('Chişinău, ', '')
+        order_from = f'<a href="https://yandex.ru/maps/?pt={from_location}&z=18&l=map">{from_message}</a>'
+    else:
+        order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
+
+    if to_geo:
+        to_message = to_message.replace('Chişinău, ', '')
+        order_to = f'<a href="https://yandex.ru/maps/?pt={to_location}&z=18&l=map">{to_message}</a>'
+    else:
+        order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
+
+    order_from_to = f'<a href="{generate_route_url(from_message, to_message, from_location, to_location, mapmd_token)}"> ➡️ </a>'
 
     return f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
            f'{order_from} {order_from_to} {order_to}\n' \
@@ -89,14 +107,25 @@ def generate_address_url(address: str) -> str:
     return urllib.parse.quote(address)
 
 
-def generate_route_url(from_message: str, to_message: str, token: str) -> str:
-    from_structure = get_address_structure(from_message, token)
-    from_lat = from_structure.get('latitude')
-    from_lon = from_structure.get('longitude')
+def generate_route_url(from_message: str, to_message: str, from_location: str, to_location: str, token: str) -> str:
 
-    to_structure = get_address_structure(to_message, token)
-    to_lat = to_structure.get('latitude')
-    to_lon = to_structure.get('longitude')
+    if len(from_location) == 0:
+        from_structure = get_address_structure(from_message, token)
+        from_lat = from_structure.get('latitude')
+        from_lon = from_structure.get('longitude')
+    else:
+        from_structure = from_location.split(',')
+        from_lat = from_structure[1]
+        from_lon = from_structure[0]
+
+    if len(to_location) == 0:
+        to_structure = get_address_structure(to_message, token)
+        to_lat = to_structure.get('latitude')
+        to_lon = to_structure.get('longitude')
+    else:
+        to_structure = to_location.split(',')
+        to_lat = to_structure[1]
+        to_lon = to_structure[0]
 
     return f'https://yandex.ru/maps/?rtext={from_lat},{from_lon}~{to_lat},{to_lon}&rtt=auto'
 

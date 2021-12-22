@@ -1,4 +1,6 @@
 import json
+import requests
+from requests.auth import HTTPBasicAuth
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -6,7 +8,9 @@ from telegram import KeyboardButton, ReplyKeyboardMarkup, ParseMode, InlineKeybo
 # STEP NAMES
 QUESTION = 'question'
 TAXI_FROM = 'from'
+TAXI_FROM_LOCATION = 'from_location'
 TAXI_TO = 'to'
+TAXI_TO_LOCATION = 'to_location'
 TAXI_TIME = 'time'
 TAXI_CONTACT = 'contacts'
 
@@ -100,7 +104,9 @@ class OrdersManager:
             'drivers_notification_declined_sent': False,
             'user_notification_sent': False,
             TAXI_FROM: '',
+            TAXI_FROM_LOCATION: '',
             TAXI_TO: '',
+            TAXI_TO_LOCATION: '',
             TAXI_TIME: '',
             TAXI_CONTACT: ''
         }
@@ -132,6 +138,12 @@ class OrdersManager:
 class TelegramMenu:
 
     def __init__(self, user_manager: UserManager, orders_manager: OrdersManager):
+
+        # Map.md Token
+        with open('settings.json', 'r') as file:
+            file_data = json.load(file)
+            self.mapmd_token = file_data.get('mapmd_token')
+            file.close()
 
         self.user_manager = user_manager
         self.orders_manager = orders_manager
@@ -172,9 +184,13 @@ class TelegramMenu:
                                              reply_markup=reply_markup)
         elif user_message == 'ЦЕНЫ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='❇️ Между районами - <b>40 лей</b>\n'
-                                          '❇️ Через район - <b>60 лей</b>\n'
-                                          '❇️ Загород - <b>5 лей/км</b>',
+                                     text='❇️ По району - <b>40 ЛЕЙ</b>\n'
+                                          '❇️ Между районами - <b>50 ЛЕЙ</b>\n'
+                                          '❇️ Через район - <b>60 ЛЕЙ</b>\n\n'
+                                          '🌐 Тариф вне Кишинева - <b>5 ЛЕЙ/КМ</b>\n\n'
+                                          '🕓 <i>Ожидание: 5 мин. бесплатно, далее - <b>1 ЛЕЙ/МИН.</b></i>\n\n'
+                                          '‼️ Цены указаны приблизительно и могут варьироваться в зависимости от разных факторов!\n'
+                                          '‼️ Советуем уточнять цену перед поездкой!',
                                      parse_mode=ParseMode.HTML)
         elif user_message == 'ВОПРОС / ПРЕДЛОЖЕНИЕ':
             context.bot.send_message(chat_id=update.effective_chat.id,
@@ -189,17 +205,31 @@ class TelegramMenu:
     def location_message(self, update, context) -> None:
 
         user_id = update.effective_chat.id
+
         location = update.message.location
+        latitude = location.latitude
+        longitude = location.longitude
+        full_location = f'{longitude},{latitude}'
+        address = self.get_address_from_location(latitude, longitude)
 
         current_step = self.user_manager.get_user_field(user_id, 'current_step')
 
-        latitude = location.latitude
-        longitude = location.longitude
-
         if current_step == TAXI_FROM:
-            pass
+            user_name = self.user_manager.get_user_field(user_id, 'link')
+            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
+            self.user_manager.set_user_field(user_id, 'current_order_id', order_id)
+            self.orders_manager.set_order_field(order_id, TAXI_FROM, address)
+            self.orders_manager.set_order_field(order_id, TAXI_FROM_LOCATION, full_location)
+            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
+            context.bot.send_message(chat_id=user_id,
+                                     text='Куда Вас отвезти?')
         elif current_step == TAXI_TO:
-            pass
+            order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+            self.orders_manager.set_order_field(order_id, TAXI_TO, address)
+            self.orders_manager.set_order_field(order_id, TAXI_TO_LOCATION, full_location)
+            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
+            context.bot.send_message(chat_id=user_id,
+                                     text='Во сколько Вас забрать? (Пример: 17:30)')
 
     def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
 
@@ -247,6 +277,27 @@ class TelegramMenu:
             self.orders_manager.set_order_field(order_id, 'status', 'open')
             context.bot.send_message(chat_id=user_id,
                                      text='🔔 Заявка отправлена! Ожидайте ответа...')
+
+    def get_address_from_location(self, latitude: str, longitude: str) -> str:
+
+        url = f'https://map.md/api/companies/webmap/near?lat={latitude}&lon={longitude}'
+        headers = {'Content-Type': 'application/json'}
+        request = requests.get(url=url,
+                               auth=HTTPBasicAuth(self.mapmd_token, ''),
+                               headers=headers)
+
+        if request.status_code == 200:
+            request_json = request.json()
+            try:
+                building = request_json.get('building')
+                city = building.get('location').replace('Chişinău', 'Chisinau')
+                street = building.get('street_name')
+                number = building.get('number')
+                return f'{city}, {street} {number}'
+            except:
+                return 'Не определен'
+        else:
+            return 'Не определен'
 
 
 class TelegramHandlers:
