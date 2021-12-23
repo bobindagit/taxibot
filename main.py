@@ -12,6 +12,7 @@ from telegramChatBot import TelegramChatBot
 
 
 def main():
+
     # Map.md Token
     with open('settings.json', 'r') as file:
         file_data = json.load(file)
@@ -25,14 +26,14 @@ def main():
 
     # Menu
     order_keyboard = [
-        [InlineKeyboardButton(text='Принять заказ', callback_data='accept_order')]
+        [InlineKeyboardButton(text='Принять', callback_data='accept_order')]
     ]
     reply_markup = InlineKeyboardMarkup(order_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
     # Main loop
     while True:
-        # Telegram USER bot
-        # Checking status of orders
+
+        # USER bot
         accepted_orders = database.db_orders.find({'status': 'accepted', 'user_notification_sent': False})
         for order in accepted_orders:
             user_id = order.get('user_id')
@@ -44,13 +45,13 @@ def main():
             # Updating orders count
             current_orders_count = telegram_bot.user_manager.get_user_field(user_id, 'orders_count')
             telegram_bot.user_manager.set_user_field(user_id, 'orders_count', current_orders_count + 1)
-        # Telegram DRIVERS bot
-        # Checking for new orders
+
+        # DRIVERS CHAT bot
+        # New orders
         opened_orders = telegram_chat_bot.get_orders('open')
         for order in opened_orders:
-
+            order_id = order.get('order_id')
             message_for_drivers = generate_message_for_drivers(order, mapmd_token)
-
             # Message to drivers chat
             message_sent = telegram_chat_bot.updater.bot.send_message(chat_id=telegram_chat_bot.bot_chat_id,
                                                                       text=message_for_drivers,
@@ -58,10 +59,9 @@ def main():
                                                                       reply_markup=reply_markup,
                                                                       disable_web_page_preview=True)
             # Update info of the order
-            order_id = order.get('order_id')
             telegram_bot.orders_manager.set_order_field(order_id, 'message_id', message_sent.message_id)
             telegram_bot.orders_manager.set_order_field(order_id, 'drivers_notification_sent', True)
-        # Checking for declined orders
+        # Declined orders
         declined_orders = telegram_chat_bot.get_orders('declined')
         for order in declined_orders:
             telegram_chat_bot.updater.bot.edit_message_text(chat_id=telegram_chat_bot.bot_chat_id,
@@ -84,17 +84,18 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
 
     # Checking if we got addresses from geolocation
     if from_geo:
-        from_message_modified = from_message.replace('Chișinău,', '').replace('Chișinău,', '').replace('Chisinau,', '').strip()
+        from_message_modified = from_message.replace('Chișinău,', '').replace('Chisinau,', '').strip()
         order_from = f'<a href="https://yandex.ru/maps/?pt={from_location}&z=18&l=map">{from_message_modified}</a>'
     else:
-        order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
+        order_from = f'<a href="https://yandex.ru/maps/?l=map&text={convert_address_url(from_message)}">{from_message}</a>'
 
     if to_geo:
-        to_message_modified = to_message.replace('Chișinău,', '').replace('Chișinău,', '').replace('Chisinau,', '').strip()
+        to_message_modified = to_message.replace('Chișinău,', '').replace('Chisinau,', '').strip()
         order_to = f'<a href="https://yandex.ru/maps/?pt={to_location}&z=18&l=map">{to_message_modified}</a>'
     else:
-        order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
+        order_to = f'<a href="https://yandex.ru/maps/?l=map&text={convert_address_url(to_message)}">{to_message}</a>'
 
+    # Route
     order_from_to = f'<a href="{generate_route_url(from_message, to_message, from_location, to_location, mapmd_token)}"> ➡️ </a>'
 
     return f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
@@ -104,7 +105,8 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
            f'💬 @{order.get("user_name")}'
 
 
-def generate_address_url(address: str) -> str:
+def convert_address_url(address: str) -> str:
+
     if address.find('CHISINAU') == -1:
         address = 'Chisinau, ' + address
 
@@ -135,6 +137,7 @@ def generate_route_url(from_message: str, to_message: str, from_location: str, t
 
 
 def get_address_structure(address: str, token: str) -> dict:
+
     url = f'https://map.md/api/companies/webmap/search?q={address}'
     headers = {'Content-Type': 'application/json'}
     request = requests.get(url=url,

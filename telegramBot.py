@@ -45,7 +45,6 @@ class TelegramBot:
         self.dispatcher.add_handler(MessageHandler(Filters.text, menu.menu_message))
         self.dispatcher.add_handler(MessageHandler(Filters.location, menu.location_message))
         self.dispatcher.add_handler(MessageHandler(Filters.command, handlers.unknown))
-
         self.dispatcher.add_handler(CallbackQueryHandler(self.orders_manager.decline_order, pattern='decline_order'))
 
         # Starting the bot
@@ -59,9 +58,15 @@ class UserManager:
     def __init__(self, db_user_info):
         self.db_user_info = db_user_info
 
-    def add_user(self, user_info: dict) -> None:
-        user_id = user_info.get('user_id')
-        self.db_user_info.update({'user_id': user_id}, user_info, upsert=True)
+    def create_user(self, current_user: dict) -> None:
+        user_info = {'user_id': current_user.id,
+                     'full_name': current_user.full_name,
+                     'link': current_user.link,
+                     'current_step': '',
+                     'current_order_id': '',
+                     'contacts': [],
+                     'orders_count': 0}
+        self.db_user_info.update({'user_id': current_user.id}, user_info, upsert=True)
 
     def remove_user(self, user_id: str) -> None:
         self.db_user_info.remove({'user_id': user_id})
@@ -78,19 +83,6 @@ class OrdersManager:
 
     def __init__(self, db_orders):
         self.db_orders = db_orders
-
-    def set_order_field(self, order_id: str, order_field: str, new_value: str) -> None:
-        value_to_update = {"$set": {order_field: new_value}}
-        self.db_orders.update({'order_id': order_id}, value_to_update)
-
-    def get_order_info(self, order_id: str) -> dict:
-        return self.db_orders.find({'order_id': order_id})[0]
-
-    def get_open_orders(self, user_id: str) -> list:
-        return self.db_orders.find({'user_id': user_id, 'status': 'open'})
-
-    def generate_order_message(self, order: dict) -> str:
-        return f'[№{order.get("order_id")}] {order.get(TAXI_FROM)} -> {order.get(TAXI_TO)} ({order.get(TAXI_TIME)})'
 
     def create_order(self, user_id: str, user_name: str) -> str:
         new_order = {
@@ -119,6 +111,19 @@ class OrdersManager:
         else:
             all_orders = self.db_orders.find()
             return all_orders[all_orders.count() - 1].get('order_id') + 1
+
+    def set_order_field(self, order_id: str, order_field: str, new_value: str) -> None:
+        value_to_update = {"$set": {order_field: new_value}}
+        self.db_orders.update({'order_id': order_id}, value_to_update)
+
+    def get_order_info(self, order_id: str) -> dict:
+        return self.db_orders.find({'order_id': order_id})[0]
+
+    def get_open_orders(self, user_id: str) -> list:
+        return self.db_orders.find({'user_id': user_id, 'status': 'open'})
+
+    def generate_order_message(self, order: dict) -> str:
+        return f'[№{order.get("order_id")}] {order.get(TAXI_FROM)} -> {order.get(TAXI_TO)} ({order.get(TAXI_TIME)})'
 
     def decline_order(self, update, context) -> None:
         message = update.effective_message.text_html
@@ -166,7 +171,7 @@ class TelegramMenu:
 
         if user_message == 'ЗАКАЗАТЬ ТАКСИ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Откуда Вас забрать?')
+                                     text='Откуда поедем?')
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_FROM)
         elif user_message == 'АКТИВНЫЕ ЗАКАЗЫ':
             open_orders = self.orders_manager.get_open_orders(user_id)
@@ -215,21 +220,9 @@ class TelegramMenu:
         current_step = self.user_manager.get_user_field(user_id, 'current_step')
 
         if current_step == TAXI_FROM:
-            user_name = self.user_manager.get_user_field(user_id, 'link')
-            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
-            self.user_manager.set_user_field(user_id, 'current_order_id', order_id)
-            self.orders_manager.set_order_field(order_id, TAXI_FROM, address)
-            self.orders_manager.set_order_field(order_id, TAXI_FROM_LOCATION, full_location)
-            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
-            context.bot.send_message(chat_id=user_id,
-                                     text='Куда Вас отвезти?')
+            self.taxi_from_handler(user_id, address, full_location, context)
         elif current_step == TAXI_TO:
-            order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-            self.orders_manager.set_order_field(order_id, TAXI_TO, address)
-            self.orders_manager.set_order_field(order_id, TAXI_TO_LOCATION, full_location)
-            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
-            context.bot.send_message(chat_id=user_id,
-                                     text='Во сколько Вас забрать? (Пример: 17:30)')
+            self.taxi_to_handler(user_id, address, full_location, context)
 
     def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
 
@@ -241,42 +234,70 @@ class TelegramMenu:
             context.bot.send_message(chat_id='360152058',
                                      text=question,
                                      parse_mode=ParseMode.HTML)
-            # # metallity
-            # context.bot.send_message(chat_id='496337433',
-            #                          text=question,
-            #                          parse_mode=ParseMode.HTML)
         elif current_step == TAXI_FROM:
-            user_name = self.user_manager.get_user_field(user_id, 'link')
-            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
-            self.user_manager.set_user_field(user_id, 'current_order_id', order_id)
-            self.orders_manager.set_order_field(order_id, TAXI_FROM, user_message)
-            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
-            context.bot.send_message(chat_id=user_id,
-                                     text='Куда Вас отвезти?')
+            self.taxi_from_handler(user_id, user_message, '', context)
         elif current_step == TAXI_TO:
-            order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-            self.orders_manager.set_order_field(order_id, TAXI_TO, user_message)
-            self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
-            context.bot.send_message(chat_id=user_id,
-                                     text='Во сколько Вас забрать? (Пример: 17:30)')
+            self.taxi_to_handler(user_id, user_message, '', context)
         elif current_step == TAXI_TIME:
-            order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-            self.orders_manager.set_order_field(order_id, TAXI_TIME, user_message)
-            self.user_manager.set_user_field(user_id, 'current_step', TAXI_CONTACT)
-            context.bot.send_message(chat_id=user_id,
-                                     text='Как с Вами связаться?')
+            self.taxi_time_handler(user_id, user_message, context)
         elif current_step == TAXI_CONTACT:
-            order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-            self.orders_manager.set_order_field(order_id, TAXI_CONTACT, user_message)
-            self.user_manager.set_user_field(user_id, 'current_step', '')
-            self.user_manager.set_user_field(user_id, 'current_order_id', '')
-            current_contacts = self.user_manager.get_user_field(user_id, 'contacts')
-            if user_message not in current_contacts:
-                current_contacts.append(user_message)
-            self.user_manager.set_user_field(user_id, 'contacts', current_contacts)
-            self.orders_manager.set_order_field(order_id, 'status', 'open')
-            context.bot.send_message(chat_id=user_id,
-                                     text='🔔 Заявка отправлена! Ожидайте ответа...')
+            self.taxi_contact_handler(user_id, user_message, context)
+
+    def taxi_from_handler(self, user_id: str, address: str, full_location: str, context) -> None:
+
+        user_name = self.user_manager.get_user_field(user_id, 'link')
+        order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
+
+        self.orders_manager.set_order_field(order_id, TAXI_FROM, address)
+        self.orders_manager.set_order_field(order_id, TAXI_FROM_LOCATION, full_location)
+
+        self.user_manager.set_user_field(user_id, 'current_order_id', order_id)
+        self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
+
+        context.bot.send_message(chat_id=user_id,
+                                 text='Куда поедем?')
+
+    def taxi_to_handler(self, user_id: str, address: str, full_location: str, context) -> None:
+
+        order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+
+        self.orders_manager.set_order_field(order_id, TAXI_TO, address)
+        self.orders_manager.set_order_field(order_id, TAXI_TO_LOCATION, full_location)
+
+        self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
+
+        context.bot.send_message(chat_id=user_id,
+                                 text='Во сколько Вас забрать? (Пример: 17:30)')
+
+    def taxi_time_handler(self, user_id: str, user_message: str, context) -> None:
+
+        order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+
+        self.orders_manager.set_order_field(order_id, TAXI_TIME, user_message)
+        self.user_manager.set_user_field(user_id, 'current_step', TAXI_CONTACT)
+
+        context.bot.send_message(chat_id=user_id,
+                                 text='Как с Вами связаться?')
+
+    def taxi_contact_handler(self, user_id: str, user_message: str, context) -> None:
+
+        order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+
+        self.orders_manager.set_order_field(order_id, TAXI_CONTACT, user_message)
+
+        self.user_manager.set_user_field(user_id, 'current_step', '')
+        self.user_manager.set_user_field(user_id, 'current_order_id', '')
+
+        # Updating contacts
+        current_contacts = self.user_manager.get_user_field(user_id, 'contacts')
+        if user_message not in current_contacts:
+            current_contacts.append(user_message)
+        self.user_manager.set_user_field(user_id, 'contacts', current_contacts)
+
+        self.orders_manager.set_order_field(order_id, 'status', 'open')
+
+        context.bot.send_message(chat_id=user_id,
+                                 text='🔔 Заявка отправлена! Ожидайте ответа...')
 
     def get_address_from_location(self, latitude: str, longitude: str) -> str:
 
@@ -310,16 +331,9 @@ class TelegramHandlers:
 
     def start(self, update, context) -> None:
 
-        # Adding user ID
+        # Creating users
         current_user = update.effective_chat
-        user_info = {'user_id': current_user.id,
-                     'full_name': current_user.full_name,
-                     'link': current_user.link,
-                     'current_step': '',
-                     'current_order_id': '',
-                     'contacts': [],
-                     'orders_count': 0}
-        self.user_manager.add_user(user_info)
+        self.user_manager.create_user(current_user)
 
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text=f'👋 <b>Привет, {current_user.full_name}!</b> 👋\n\n'
@@ -334,7 +348,7 @@ class TelegramHandlers:
         self.user_manager.remove_user(update.effective_chat.id)
 
         context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='Чтобы вновь пользоваться мной - введи /start')
+                                 text='Чтобы вновь удобно заказывать такси - введи /start')
 
     def unknown(self, update, context) -> None:
 

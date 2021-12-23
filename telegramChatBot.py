@@ -41,7 +41,7 @@ class TelegramChatBot:
         # Starting the bot
         self.updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
-        print('Telegram chat bot initialized!')
+        print('CHAT BOT initialized!')
 
     def track_chats(self, update: Update, context: CallbackContext) -> None:
 
@@ -114,16 +114,20 @@ class TelegramChatBot:
         return was_member, is_member
 
     def get_orders(self, status_name: str) -> list:
+
         if status_name == 'declined':
             flag_type = 'drivers_notification_declined_sent'
         else:
             flag_type = 'drivers_notification_sent'
+
         return self.database.db_orders.find({'status': status_name, flag_type: False})
 
     def accept_order(self, update, context) -> None:
+
         message = update.effective_message.text_html
         order_id = message.partition('</b>')[2].partition('\n')[0].replace(' ‼️ №', '')
         driver_name = update.effective_user.name
+
         # Updating order driver's name
         value_to_update = {"$set": {'driver_name': driver_name}}
         self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)        
