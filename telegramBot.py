@@ -1,5 +1,8 @@
 import json
 import requests
+from datetime import datetime
+from datetime import timedelta
+import time
 from requests.auth import HTTPBasicAuth
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
@@ -46,6 +49,10 @@ class TelegramBot:
         self.dispatcher.add_handler(MessageHandler(Filters.location, menu.location_message))
         self.dispatcher.add_handler(MessageHandler(Filters.command, handlers.unknown))
         self.dispatcher.add_handler(CallbackQueryHandler(self.orders_manager.decline_order, pattern='decline_order'))
+        # Time menu handlers
+        self.dispatcher.add_handler(CallbackQueryHandler(menu.time1, pattern='time1'))
+        self.dispatcher.add_handler(CallbackQueryHandler(menu.time2, pattern='time2'))
+        self.dispatcher.add_handler(CallbackQueryHandler(menu.time3, pattern='time3'))
 
         # Starting the bot
         self.updater.start_polling()
@@ -266,8 +273,15 @@ class TelegramMenu:
 
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
 
+        keyboard = [
+            InlineKeyboardButton('Сейчас', callback_data='time1'),
+            InlineKeyboardButton('30 мин', callback_data='time2'),
+            InlineKeyboardButton('1 час', callback_data='time3')
+        ]
+
         context.bot.send_message(chat_id=user_id,
-                                 text='Во сколько Вас забрать? (Пример: 17:30)')
+                                 text='Во сколько Вас забрать? Выберите вариант или напишите свой (Пример: 17:30)',
+                                 reply_markup=InlineKeyboardMarkup(keyboard))
 
     def taxi_time_handler(self, user_id: str, user_message: str, context) -> None:
 
@@ -319,6 +333,29 @@ class TelegramMenu:
                 return 'Не определен'
         else:
             return 'Не определен'
+
+    def time1(self, update, context) -> None:
+
+        user_id = update.effective_chat.id
+        self.taxi_time_handler(user_id, 'сейчас', context)
+
+    def time2(self, update, context) -> None:
+
+        user_id = update.effective_chat.id
+
+        current_time = datetime.now()
+        final_time = current_time + timedelta(minutes=30)
+
+        self.taxi_time_handler(user_id, time.strftime("%H:%M", final_time), context)
+
+    def time3(self, update, context) -> None:
+
+        user_id = update.effective_chat.id
+
+        current_time = datetime.now()
+        final_time = current_time + timedelta(minutes=60)
+
+        self.taxi_time_handler(user_id, time.strftime("%H:%M", final_time), context)
 
 
 class TelegramHandlers:
