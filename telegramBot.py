@@ -317,7 +317,8 @@ class TelegramHandlers:
                      'link': current_user.link,
                      'current_step': '',
                      'current_order_id': '',
-                     'contacts': []}
+                     'contacts': [],
+                     'orders_count': 0}
         self.user_manager.add_user(user_info)
 
         context.bot.send_message(chat_id=update.effective_chat.id,

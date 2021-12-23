@@ -35,11 +35,15 @@ def main():
         # Checking status of orders
         accepted_orders = database.db_orders.find({'status': 'accepted', 'user_notification_sent': False})
         for order in accepted_orders:
+            user_id = order.get('user_id')
             order_info = f'✅ Ваш заказ {order.get("from")} -> {order.get("to")} <b>ПРИНЯТ</b>!\n🚕 Водитель: {order.get("driver_name")}'
-            telegram_bot.updater.bot.send_message(chat_id=order.get('user_id'),
+            telegram_bot.updater.bot.send_message(chat_id=user_id,
                                                   text=order_info,
                                                   parse_mode=ParseMode.HTML)
             telegram_bot.orders_manager.set_order_field(order.get('order_id'), 'user_notification_sent', True)
+            # Updating orders count
+            current_orders_count = telegram_bot.user_manager.get_user_field(user_id, 'orders_count')
+            telegram_bot.user_manager.set_user_field(user_id, 'orders_count', current_orders_count + 1)
         # Telegram DRIVERS bot
         # Checking for new orders
         opened_orders = telegram_chat_bot.get_orders('open')
