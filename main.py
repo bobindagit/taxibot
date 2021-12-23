@@ -20,7 +20,7 @@ def main():
 
     database = Database()
 
-    telegram_bot = TelegramBot(database, mapmd_token)
+    telegram_bot = TelegramBot(database)
     telegram_chat_bot = TelegramChatBot(database)
 
     # Menu
