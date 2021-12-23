@@ -124,11 +124,11 @@ class TelegramChatBot:
         message = update.effective_message.text_html
         order_id = message.partition('</b>')[2].partition('\n')[0].replace(' ‼️ №', '')
         driver_name = update.effective_user.name
-        # Updating order status
-        value_to_update = {"$set": {'status': "accepted"}}
-        self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)
         # Updating order driver's name
         value_to_update = {"$set": {'driver_name': driver_name}}
+        self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)        
+        # Updating order status
+        value_to_update = {"$set": {'status': "accepted"}}
         self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)
         # Message to chat
         query = update.callback_query
