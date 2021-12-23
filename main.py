@@ -84,13 +84,13 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
 
     # Checking if we got addresses from geolocation
     if from_geo:
-        from_message = from_message.replace('Chişinău, ', '')
+        from_message = from_message.replace('Chişinău,', '').replace('Chisinau,', '').strip()
         order_from = f'<a href="https://yandex.ru/maps/?pt={from_location}&z=18&l=map">{from_message}</a>'
     else:
         order_from = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(from_message)}">{from_message}</a>'
 
     if to_geo:
-        to_message = to_message.replace('Chişinău, ', '')
+        to_message = to_message.replace('Chişinău,', '').replace('Chisinau,', '').strip()
         order_to = f'<a href="https://yandex.ru/maps/?pt={to_location}&z=18&l=map">{to_message}</a>'
     else:
         order_to = f'<a href="https://yandex.ru/maps/?l=map&text={generate_address_url(to_message)}">{to_message}</a>'
