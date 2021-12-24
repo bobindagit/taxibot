@@ -276,9 +276,10 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
 
         keyboard = [
-            [InlineKeyboardButton('Сейчас', callback_data='time1'),
-            InlineKeyboardButton('30 мин', callback_data='time2'),
-            InlineKeyboardButton('1 час', callback_data='time3')]
+            [InlineKeyboardButton('Ближайшее время', callback_data='time1')],
+            [InlineKeyboardButton('15 мин', callback_data='time2'),
+            InlineKeyboardButton('20 мин', callback_data='time3'),
+            InlineKeyboardButton('25 мин', callback_data='time4')]
         ]
         update.message.reply_text(text='Во сколько Вас забрать? Выберите вариант или напишите свой',
                                     reply_markup=InlineKeyboardMarkup(keyboard))
@@ -343,7 +344,7 @@ class TelegramMenu:
         query.answer()
 
         user_id = update.effective_chat.id
-        self.taxi_time_handler(user_id, 'Cейчас', context)
+        self.taxi_time_handler(user_id, 'Ближайшее время', context)
 
     def time2(self, update, context) -> None:
 
@@ -353,7 +354,7 @@ class TelegramMenu:
         user_id = update.effective_chat.id
 
         current_time = datetime.now()
-        final_time = current_time + timedelta(minutes=30)
+        final_time = current_time + timedelta(minutes=15)
 
         self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
 
@@ -365,10 +366,21 @@ class TelegramMenu:
         user_id = update.effective_chat.id
 
         current_time = datetime.now()
-        final_time = current_time + timedelta(minutes=60)
+        final_time = current_time + timedelta(minutes=20)
 
         self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
+    
+    def time4(self, update, context) -> None:
+        
+        query = update.callback_query
+        query.answer()
 
+        user_id = update.effective_chat.id
+
+        current_time = datetime.now()
+        final_time = current_time + timedelta(minutes=25)
+
+        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
 
 class TelegramHandlers:
 
