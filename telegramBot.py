@@ -178,7 +178,8 @@ class TelegramMenu:
 
         if user_message == 'ЗАКАЗАТЬ ТАКСИ':
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Откуда поедем?')
+                                     text='Откуда поедем?\n(<b>прикрепите геопозицию или напишите сообщение</b>)',
+                                     parse_mode=ParseMode.HTML)
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_FROM)
         elif user_message == 'АКТИВНЫЕ ЗАКАЗЫ':
             open_orders = self.orders_manager.get_open_orders(user_id)
@@ -209,7 +210,7 @@ class TelegramMenu:
                                      text='Напишите Ваш вопрос или предложение')
             self.user_manager.set_user_field(user_id, 'current_step', QUESTION)
         elif len(current_step) != 0:
-            self.message_handler(user_id, user_message, current_step, context)
+            self.message_handler(user_id, user_message, current_step, update, context)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Я не знаю такой команды')
@@ -229,9 +230,9 @@ class TelegramMenu:
         if current_step == TAXI_FROM:
             self.taxi_from_handler(user_id, address, full_location, context)
         elif current_step == TAXI_TO:
-            self.taxi_to_handler(user_id, address, full_location, context)
+            self.taxi_to_handler(user_id, address, full_location, update)
 
-    def message_handler(self, user_id: str, user_message: str, current_step: str, context) -> None:
+    def message_handler(self, user_id: str, user_message: str, current_step: str, update, context) -> None:
 
         if current_step == QUESTION:
             user_name = self.user_manager.get_user_field(user_id, 'link').replace('https://t.me/', '@')
@@ -244,7 +245,7 @@ class TelegramMenu:
         elif current_step == TAXI_FROM:
             self.taxi_from_handler(user_id, user_message, '', context)
         elif current_step == TAXI_TO:
-            self.taxi_to_handler(user_id, user_message, '', context)
+            self.taxi_to_handler(user_id, user_message, '', update)
         elif current_step == TAXI_TIME:
             self.taxi_time_handler(user_id, user_message, context)
         elif current_step == TAXI_CONTACT:
@@ -262,9 +263,10 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
 
         context.bot.send_message(chat_id=user_id,
-                                 text='Куда поедем?')
+                                 text='Куда поедем?\n(<b>прикрепите геопозицию или напишите сообщение</b>)',
+                                 parse_mode=ParseMode.HTML)
 
-    def taxi_to_handler(self, user_id: str, address: str, full_location: str, context) -> None:
+    def taxi_to_handler(self, user_id: str, address: str, full_location: str, update) -> None:
 
         order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
 
@@ -274,14 +276,15 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
 
         keyboard = [
-            InlineKeyboardButton('Сейчас', callback_data='time1'),
+            [InlineKeyboardButton('Сейчас', callback_data='time1'),
             InlineKeyboardButton('30 мин', callback_data='time2'),
-            InlineKeyboardButton('1 час', callback_data='time3')
+            InlineKeyboardButton('1 час', callback_data='time3')]
         ]
-
-        context.bot.send_message(chat_id=user_id,
-                                 text='Во сколько Вас забрать? Выберите вариант или напишите свой (Пример: 17:30)',
-                                 reply_markup=InlineKeyboardMarkup(keyboard))
+        update.message.reply_text(text='Во сколько Вас забрать? Выберите вариант или напишите свой',
+                                    reply_markup=InlineKeyboardMarkup(keyboard))
+        #context.bot.send_message(chat_id=user_id,
+        #                         text='Во сколько Вас забрать? Выберите вариант или напишите свой (Пример: 17:30)',
+        #                         reply_markup=InlineKeyboardMarkup(keyboard))
 
     def taxi_time_handler(self, user_id: str, user_message: str, context) -> None:
 
@@ -335,27 +338,36 @@ class TelegramMenu:
             return 'Не определен'
 
     def time1(self, update, context) -> None:
+        
+        query = update.callback_query
+        query.answer()
 
         user_id = update.effective_chat.id
-        self.taxi_time_handler(user_id, 'сейчас', context)
+        self.taxi_time_handler(user_id, 'Cейчас', context)
 
     def time2(self, update, context) -> None:
+
+        query = update.callback_query
+        query.answer()
 
         user_id = update.effective_chat.id
 
         current_time = datetime.now()
         final_time = current_time + timedelta(minutes=30)
 
-        self.taxi_time_handler(user_id, time.strftime("%H:%M", final_time), context)
+        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
 
     def time3(self, update, context) -> None:
+        
+        query = update.callback_query
+        query.answer()
 
         user_id = update.effective_chat.id
 
         current_time = datetime.now()
         final_time = current_time + timedelta(minutes=60)
 
-        self.taxi_time_handler(user_id, time.strftime("%H:%M", final_time), context)
+        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
 
 
 class TelegramHandlers:
