@@ -2,7 +2,6 @@ import json
 import requests
 from datetime import datetime
 from datetime import timedelta
-import time
 from requests.auth import HTTPBasicAuth
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
@@ -57,7 +56,7 @@ class TelegramBot:
         # Starting the bot
         self.updater.start_polling()
 
-        print('Telegram bot initialized!')
+        print('USER BOT initialized!')
 
 
 class UserManager:
@@ -66,9 +65,12 @@ class UserManager:
         self.db_user_info = db_user_info
 
     def create_user(self, current_user: dict) -> None:
+        user_link = current_user.link
+        if not user_link:
+            user_link = ''
         user_info = {'user_id': current_user.id,
                      'full_name': current_user.full_name,
-                     'link': current_user.link,
+                     'link': user_link,
                      'current_step': '',
                      'current_order_id': '',
                      'contacts': [],
@@ -392,6 +394,7 @@ class TelegramMenu:
 
         self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
 
+
 class TelegramHandlers:
 
     def __init__(self, user_manager: UserManager, menu: TelegramMenu):
@@ -410,7 +413,8 @@ class TelegramHandlers:
                                  text=f'👋 <b>Привет, {current_user.full_name}!</b> 👋\n\n'
                                       f'🚕 С моей помощью можно удобно заказать такси\n'
                                       f'❓ <i>Есть вопрос или предложение? Связаться с администрацией можно по соответствующей кнопке</i>\n\n'
-                                      f'📣 Хочешь быть в команде водителей? Свяжись с нами',
+                                      f'📣 Хочешь быть в команде водителей? Свяжись с нами\n\n'
+                                      f'Проблемы с ботом? Пропишите /start для перезапуска или свяжитесь с администрацией',
                                  reply_markup=self.menu.reply_markup,
                                  parse_mode=ParseMode.HTML)
 
