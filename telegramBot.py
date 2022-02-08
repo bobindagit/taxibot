@@ -260,7 +260,10 @@ class TelegramMenu:
             user_name = self.user_manager.get_user_field(user_id, 'link')
         except:
             user_name = 'скрыто пользователем'
-        order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
+        if user_name:
+            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
+        else:
+            order_id = self.orders_manager.create_order(user_id, '')
 
         self.orders_manager.set_order_field(order_id, TAXI_FROM, address)
         self.orders_manager.set_order_field(order_id, TAXI_FROM_LOCATION, full_location)
