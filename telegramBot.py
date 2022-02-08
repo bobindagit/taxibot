@@ -235,11 +235,13 @@ class TelegramMenu:
     def message_handler(self, user_id: str, user_message: str, current_step: str, update, context) -> None:
 
         if current_step == QUESTION:
-            try:
-                user_name = self.user_manager.get_user_field(user_id, 'link').replace('https://t.me/', '@')
-            except:
+            user_link = self.user_manager.get_user_field(user_id, 'link')
+            if user_link:
+                user_name = user_link.replace('https://t.me/', '@')
+            else:
                 user_name = 'скрыто пользователем'
-            question = f'<b>Поступил вопрос/предложение от {user_name}</b>\n\n' \
+
+            question = f'<b>Поступил вопрос/предложение от {user_name} ({user_id})</b>\n\n' \
                        f'{user_message}'
             # bobtb
             context.bot.send_message(chat_id='360152058',
@@ -255,15 +257,14 @@ class TelegramMenu:
             self.taxi_contact_handler(user_id, user_message, context)
 
     def taxi_from_handler(self, user_id: str, address: str, full_location: str, context) -> None:
-        
-        try:
-            user_name = self.user_manager.get_user_field(user_id, 'link')
-        except:
-            user_name = 'скрыто пользователем'
-        if user_name:
-            order_id = self.orders_manager.create_order(user_id, user_name.replace('https://t.me/', ''))
+
+        user_link = self.user_manager.get_user_field(user_id, 'link')
+        if user_link:
+            user_name = user_link.replace('https://t.me/', '')
         else:
-            order_id = self.orders_manager.create_order(user_id, '')
+            user_name = ''
+
+        order_id = self.orders_manager.create_order(user_id, user_name)
 
         self.orders_manager.set_order_field(order_id, TAXI_FROM, address)
         self.orders_manager.set_order_field(order_id, TAXI_FROM_LOCATION, full_location)
