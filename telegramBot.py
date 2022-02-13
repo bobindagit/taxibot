@@ -16,6 +16,11 @@ TAXI_TO_LOCATION = 'to_location'
 TAXI_TIME = 'time'
 TAXI_CONTACT = 'contacts'
 
+# TEXT DICTIONARY
+with open('all_text.json', 'r') as file:
+    ALL_TEXT = json.load(file)
+    file.close()
+
 
 class TelegramBot:
 
@@ -47,11 +52,11 @@ class TelegramBot:
         self.dispatcher.add_handler(MessageHandler(Filters.text, menu.menu_message))
         self.dispatcher.add_handler(MessageHandler(Filters.location, menu.location_message))
         self.dispatcher.add_handler(MessageHandler(Filters.command, handlers.unknown))
-        self.dispatcher.add_handler(CallbackQueryHandler(self.orders_manager.decline_order, pattern='decline_order'))
         # Time menu handlers
         self.dispatcher.add_handler(CallbackQueryHandler(menu.time1, pattern='time1'))
         self.dispatcher.add_handler(CallbackQueryHandler(menu.time2, pattern='time2'))
         self.dispatcher.add_handler(CallbackQueryHandler(menu.time3, pattern='time3'))
+        self.dispatcher.add_handler(CallbackQueryHandler(menu.time4, pattern='time4'))
 
         # Starting the bot
         self.updater.start_polling()
@@ -74,7 +79,8 @@ class UserManager:
                      'current_step': '',
                      'current_order_id': '',
                      'contacts': [],
-                     'orders_count': 0}
+                     'orders_count': 0,
+                     'language': 'ru'}
         self.db_user_info.update({'user_id': current_user.id}, user_info, upsert=True)
 
     def remove_user(self, user_id: str) -> None:
@@ -134,20 +140,6 @@ class OrdersManager:
     def generate_order_message(self, order: dict) -> str:
         return f'[№{order.get("order_id")}] {order.get(TAXI_FROM)} -> {order.get(TAXI_TO)} ({order.get(TAXI_TIME)})'
 
-    def decline_order(self, update, context) -> None:
-        message = update.effective_message.text_html
-        order_id = message.partition(']')[0].replace('[№', '')
-        # Updating order status
-        value_to_update = {"$set": {'status': "declined"}}
-        self.db_orders.update({'order_id': int(order_id)}, value_to_update)
-        # Message to chat
-        query = update.callback_query
-        query.answer()
-        query.edit_message_text(
-            text=f'❌ {message} <b>ОТМЕНЕН</b>',
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True)
-
 
 class TelegramMenu:
 
@@ -164,40 +156,44 @@ class TelegramMenu:
 
         # Main menu buttons
         main_keyboard = [
-            [KeyboardButton(text='Заказать такси'),
-             KeyboardButton(text='Активные заказы'),
-             KeyboardButton(text='Цены'),
-             KeyboardButton(text='Вопрос / Предложение')]
+            [
+                KeyboardButton(text='Заказать'),
+                KeyboardButton(text='Отменить')
+             ],
+            [
+                KeyboardButton(text='Цены'),
+                KeyboardButton(text='🇷🇴 / 🇷🇺'),
+                KeyboardButton(text='Контакты')
+            ]
         ]
         self.reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
     def menu_message(self, update, context) -> None:
 
-        user_message = update.message.text.upper()
+        user_message = update.message.text
         user_id = update.effective_chat.id
 
+        user_language = self.user_manager.get_user_field(user_id, 'language')
         current_step = self.user_manager.get_user_field(user_id, 'current_step')
 
-        if user_message == 'ЗАКАЗАТЬ ТАКСИ':
+        main_menu_text = ALL_TEXT.get('main_menu')
+
+        if user_message == main_menu_text.get('menu1_ru') or user_message == main_menu_text.get('menu1_ro'):
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Откуда поедем?\n(<b>прикрепите геопозицию или напишите сообщение</b>)',
+                                     text=ALL_TEXT.get('taxi_from').get(user_language),
                                      parse_mode=ParseMode.HTML)
             self.user_manager.set_user_field(user_id, 'current_step', TAXI_FROM)
-        elif user_message == 'АКТИВНЫЕ ЗАКАЗЫ':
+        elif user_message == main_menu_text.get('menu2_ru') or user_message == main_menu_text.get('menu2_ro'):
             open_orders = self.orders_manager.get_open_orders(user_id)
             if open_orders.count() == 0:
                 context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text='Нет активных заказов')
+                                         text=ALL_TEXT.get('no_open_orders').get(user_language))
             else:
-                order_keyboard = [
-                    [InlineKeyboardButton(text='Отменить', callback_data='decline_order')]
-                ]
-                reply_markup = InlineKeyboardMarkup(order_keyboard, resize_keyboard=True, one_time_keyboard=False)
                 for open_order in open_orders:
-                    context.bot.send_message(chat_id=update.effective_chat.id,
-                                             text=self.orders_manager.generate_order_message(open_order),
-                                             reply_markup=reply_markup)
-        elif user_message == 'ЦЕНЫ':
+                    self.orders_manager.set_order_field(open_order.get('order_id'), 'status', 'declined')
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text=ALL_TEXT.get('orders_have_been_declined').get(user_language))
+        elif user_message == main_menu_text.get('menu3_ru') or user_message == main_menu_text.get('menu3_ro'):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='❇️ По району - <b>40 ЛЕЙ</b>\n'
                                           '❇️ Между районами - <b>50 ЛЕЙ</b>\n'
@@ -207,15 +203,35 @@ class TelegramMenu:
                                           '‼️ Цены указаны приблизительно и могут варьироваться в зависимости от разных факторов!\n'
                                           '‼️ Советуем уточнять цену перед поездкой!',
                                      parse_mode=ParseMode.HTML)
-        elif user_message == 'ВОПРОС / ПРЕДЛОЖЕНИЕ':
+        elif user_message == '🇷🇴 / 🇷🇺':
+            current_language = self.user_manager.get_user_field(user_id, 'language')
+            new_language = 'ro' if current_language == 'ru' else 'ru'
+            self.user_manager.set_user_field(user_id, 'language', new_language)
+            # Main menu buttons
+            new_keyboard = [
+                [
+                    KeyboardButton(text=main_menu_text.get(f'menu1_{new_language}')),
+                    KeyboardButton(text=main_menu_text.get(f'menu2_{new_language}'))
+                ],
+                [
+                    KeyboardButton(text=main_menu_text.get(f'menu3_{new_language}')),
+                    KeyboardButton(text='🇷🇴 / 🇷🇺'),
+                    KeyboardButton(text=main_menu_text.get(f'menu4_{new_language}'))
+                ]
+            ]
+            reply_markup = ReplyKeyboardMarkup(new_keyboard, resize_keyboard=True, one_time_keyboard=False)
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Напишите Ваш вопрос или предложение')
+                                     text=ALL_TEXT.get('language_change').get(new_language),
+                                     reply_markup=reply_markup)
+        elif user_message == main_menu_text.get('menu4_ru') or user_message == main_menu_text.get('menu4_ro'):
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text=ALL_TEXT.get('contacts').get(user_language))
             self.user_manager.set_user_field(user_id, 'current_step', QUESTION)
         elif len(current_step) != 0:
             self.message_handler(user_id, user_message, current_step, update, context)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Я не знаю такой команды')
+                                     text=ALL_TEXT.get('unknown_command').get(user_language))
 
     def location_message(self, update, context) -> None:
 
@@ -275,12 +291,15 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
 
         context.bot.send_message(chat_id=user_id,
-                                 text='Куда поедем?\n(<b>прикрепите геопозицию или напишите сообщение</b>)',
+                                 text=ALL_TEXT.get('taxi_to').get(self.user_manager.get_user_field(user_id, 'language')),
                                  parse_mode=ParseMode.HTML)
 
     def taxi_to_handler(self, user_id: str, address: str, full_location: str, update) -> None:
 
         order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+
+        user_language = self.user_manager.get_user_field(user_id, 'language')
+        text_time = ALL_TEXT.get('taxi_time')
 
         self.orders_manager.set_order_field(order_id, TAXI_TO, address)
         self.orders_manager.set_order_field(order_id, TAXI_TO_LOCATION, full_location)
@@ -288,16 +307,18 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
 
         keyboard = [
-            [InlineKeyboardButton('Ближайшее время', callback_data='time1')],
-            [InlineKeyboardButton('15 мин', callback_data='time2'),
-            InlineKeyboardButton('20 мин', callback_data='time3'),
-            InlineKeyboardButton('25 мин', callback_data='time4')]
+            [
+                InlineKeyboardButton(text_time.get(f'time1_{user_language}'), callback_data='time1')
+            ],
+            [
+                InlineKeyboardButton(text_time.get(f'time2_{user_language}'), callback_data='time2'),
+                InlineKeyboardButton(text_time.get(f'time3_{user_language}'), callback_data='time3'),
+                InlineKeyboardButton(text_time.get(f'time4_{user_language}'), callback_data='time4')
+            ]
         ]
-        update.message.reply_text(text='Во сколько Вас забрать? Выберите вариант или напишите свой',
-                                    reply_markup=InlineKeyboardMarkup(keyboard))
-        #context.bot.send_message(chat_id=user_id,
-        #                         text='Во сколько Вас забрать? Выберите вариант или напишите свой (Пример: 17:30)',
-        #                         reply_markup=InlineKeyboardMarkup(keyboard))
+        update.message.reply_text(text=ALL_TEXT.get('taxi_time').get(self.user_manager.get_user_field(user_id, 'language')),
+                                  reply_markup=InlineKeyboardMarkup(keyboard),
+                                  parse_mode=ParseMode.HTML)
 
     def taxi_time_handler(self, user_id: str, user_message: str, context) -> None:
 
@@ -306,8 +327,15 @@ class TelegramMenu:
         self.orders_manager.set_order_field(order_id, TAXI_TIME, user_message)
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_CONTACT)
 
+        # Checking if username is hide
+        user_language = self.user_manager.get_user_field(user_id, 'language')
+        message_text = ALL_TEXT.get('taxi_contact').get(user_language)
+        if not self.user_manager.get_user_field(user_id, 'link'):
+            message_text += ALL_TEXT.get('taxi_contact').get(f'special_{user_language}')
+
         context.bot.send_message(chat_id=user_id,
-                                 text='Как с Вами связаться?')
+                                 text=message_text,
+                                 parse_mode=ParseMode.HTML)
 
     def taxi_contact_handler(self, user_id: str, user_message: str, context) -> None:
 
@@ -327,7 +355,7 @@ class TelegramMenu:
         self.orders_manager.set_order_field(order_id, 'status', 'open')
 
         context.bot.send_message(chat_id=user_id,
-                                 text='🔔 Заявка отправлена! Ожидайте ответа...')
+                                 text=ALL_TEXT.get('open_order').get(self.user_manager.get_user_field(user_id, 'language')))
 
     def get_address_from_location(self, latitude: str, longitude: str) -> str:
 
@@ -405,7 +433,7 @@ class TelegramHandlers:
 
     def start(self, update, context) -> None:
 
-        # Creating users
+        # Creating user
         current_user = update.effective_chat
         self.user_manager.create_user(current_user)
 

@@ -10,6 +10,11 @@ from database import Database
 from telegramBot import TelegramBot
 from telegramChatBot import TelegramChatBot
 
+# TEXT DICTIONARY
+with open('all_text.json', 'r') as file:
+    ALL_TEXT = json.load(file)
+    file.close()
+
 
 def main():
 
@@ -37,7 +42,8 @@ def main():
         accepted_orders = database.db_orders.find({'status': 'accepted', 'user_notification_sent': False})
         for order in accepted_orders:
             user_id = order.get('user_id')
-            order_info = f'✅ Ваш заказ {order.get("from")} -> {order.get("to")} <b>ПРИНЯТ</b>!\n🚕 Водитель: {order.get("driver_name")}'
+            user_language = telegram_bot.user_manager.get_user_field(user_id, 'language')
+            order_info = ALL_TEXT.get('accepted_order').get(user_language).replace('{order.from}', order.get('from')).replace('{order.to}', order.get('to')).replace('{order.driver_name}', order.get('driver_name'))
             telegram_bot.updater.bot.send_message(chat_id=user_id,
                                                   text=order_info,
                                                   parse_mode=ParseMode.HTML)

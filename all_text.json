@@ -1,0 +1,66 @@
+{
+  "main_menu": {
+    "menu1_ru": "Заказать",
+    "menu1_ro": "Comanda",
+    "menu2_ru": "Отменить",
+    "menu2_ro": "Anula",
+    "menu3_ru": "Цены",
+    "menu3_ro": "Prețuri",
+    "menu4_ru": "Контакты",
+    "menu4_ro": "Contacte"
+  },
+  "taxi_from": {
+    "ru": "<b>ОТКУДА</b> поедем?\n(<b>геопозиция или сообщение</b>)",
+    "ro": "<b>DE UNDE</b> mergem?\n(<b>geolocația sau mesaj</b>)"
+  },
+  "taxi_to": {
+    "ru": "<b>КУДА</b> поедем?\n(<b>геопозиция или сообщение</b>)",
+    "ro": "<b>UNDE</b> mergem?\n(<b>geolocația sau mesaj</b>)"
+  },
+  "taxi_time": {
+    "ru": "<b>ВО СКОЛЬКО</b> подъехать?\n(вариант или сообщение)",
+    "ro": "<b>LA CE ORĂ</b> trebuie să vin?\n(opțiune sau mesaj)",
+    "time1_ru": "Ближайшее время",
+    "time1_ro": "Mai curând",
+    "time2_ru": "15 мин",
+    "time2_ro": "15 min",
+    "time3_ru": "20 мин",
+    "time3_ro": "20 min",
+    "time4_ru": "25 мин",
+    "time4_ro": "25 min"
+  },
+  "taxi_contact": {
+    "ru": "Как с Вами связаться?",
+    "ro": "Cum să vă contactăm?",
+    "special_ru": "\n⚠️ <b>Ваш логин скрыт из-за настроек конфиденциальности, поэтому просьба ОБЯЗАТЕЛЬНО указать номер телефона для связи!</b>",
+    "special_ro": "\n⚠️ <b>Datele voastre sunt ascunse din cauza setărilor de confidențialitate, deci e NECESAR să indica un număr de telefon de contact!</b>"
+  },
+  "open_order": {
+    "ru": "\uD83D\uDD14 Заявка отправлена! Ожидайте ответа...",
+    "ro": "\uD83D\uDD14 Cererea trimisă! Așteptați un răspuns..."
+  },
+  "accepted_order": {
+    "ru": "✅ Ваш заказ {order.from} -> {order.to} <b>ПРИНЯТ</b>!\n\uD83D\uDE95 Водитель: {order.driver_name}",
+    "ro": "✅ Comanda dumneavoastră {order.from} -> {order.to} <b>A FOST ACCEPTATA</b>!\n\uD83D\uDE95 Șofer: {order.driver_name}"
+  },
+  "contacts": {
+    "ru": "Напишите вопрос или предложение и администрация в кратчайшие сроки даст ответ",
+    "ro": "Scrieți o întrebare sau o sugestie și administrația vă va răspunde cât mai curând posibil"
+  },
+  "unknown_command": {
+    "ru": "Неизвестная команда. Для помощи - обратитесь к администрации",
+    "ro": "Acțiune necunoscută. Pentru ajutor - contactati administratia"
+  },
+  "no_open_orders": {
+    "ru": "Нет активных заказов",
+    "ro": "Nu există comenzi active"
+  },
+  "orders_have_been_declined": {
+    "ru": "Все активные заказы отменены",
+    "ro": "Toate comenzile active au fost anulate"
+  },
+  "language_change": {
+    "ru": "Текущий язык: \uD83C\uDDF7\uD83C\uDDFA",
+    "ro": "Limba curentă: \uD83C\uDDF7\uD83C\uDDF4"
+  }
+}
