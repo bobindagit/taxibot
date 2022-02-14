@@ -17,7 +17,7 @@ TAXI_TIME = 'time'
 TAXI_CONTACT = 'contacts'
 
 # TEXT DICTIONARY
-with open('all_text.json', 'r') as file:
+with open('all_text.json', 'r', encoding='utf-8') as file:
     ALL_TEXT = json.load(file)
     file.close()
 
