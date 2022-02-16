@@ -107,10 +107,12 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
     message = f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
               f'{order_from} {order_from_to} {order_to}\n' \
               f'📞 Связь: {order.get("contacts")}\n'
-    if order.get("comment"):
-        message += f'🕓 Комментарий: {order.get("comment")}\n'
 
-    message += f'💬 @{order.get("user_name")}'
+    if order.get("user_name"):
+        message += f'💬 @{order.get("user_name")}\n'
+
+    if order.get("comment"):
+        message += f'🕓 Комментарий: <i>{order.get("comment")}</i>'
 
     return message
 
