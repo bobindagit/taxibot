@@ -144,8 +144,9 @@ class TelegramChatBot:
         query = update.callback_query
         query.answer()
         query.message.delete()
+        message_for_admins = message.replace('Новый заказ', 'Заказ') + f'\n🚕 <b>Водитель: {driver_name}</b>'
         self.updater.bot.send_message(chat_id=ADMIN_GROUP_ID,
-                                      text=message.replace('Новый заказ', 'Заказ'),
+                                      text=message_for_admins,
                                       parse_mode=ParseMode.HTML,
                                       disable_web_page_preview=True)
 
