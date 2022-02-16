@@ -1,0 +1,8 @@
+{
+  "bot_token_user": "*",
+  "bot_token_drivers": "*",
+  "bot_group_id": "*",
+  "bot_admin_group_id": "*",
+  "mapmd_token": "*",
+  "mongodb_connection": "*"
+}
