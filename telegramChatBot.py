@@ -8,6 +8,11 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 
+# Reading file and getting settings
+with open('settings.json', 'r') as file:
+    file_data = json.load(file)
+    ADMIN_GROUP_ID = file_data.get('bot_admin_group_id')
+    file.close()
 
 class TelegramChatBot:
 
@@ -134,14 +139,15 @@ class TelegramChatBot:
         # Updating order status
         value_to_update = {"$set": {'status': "accepted"}}
         self.database.db_orders.update({'order_id': int(order_id)}, value_to_update)
-        # Message to chat
+
+        # Order info message (delete from main chat and transfer to the admins chat)
         query = update.callback_query
         query.answer()
-        query.edit_message_text(
-            text=f'{message}\n\n'
-                 f'<b>Принят! Водитель: {driver_name}</b>',
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True)
+        query.message.delete()
+        self.updater.bot.send_message(chat_id=ADMIN_GROUP_ID,
+                                      text=message.replace('Новый заказ', 'Заказ'),
+                                      parse_mode=ParseMode.HTML,
+                                      disable_web_page_preview=True)
 
         # Sending copy of order info to the driver
         self.updater.bot.send_message(chat_id=update.effective_user.id,
