@@ -13,8 +13,8 @@ TAXI_FROM = 'from'
 TAXI_FROM_LOCATION = 'from_location'
 TAXI_TO = 'to'
 TAXI_TO_LOCATION = 'to_location'
-TAXI_TIME = 'time'
 TAXI_CONTACT = 'contacts'
+TAXI_COMMENT = 'comment'
 
 # TEXT DICTIONARY
 with open('all_text.json', 'r', encoding='utf-8') as file:
@@ -52,11 +52,8 @@ class TelegramBot:
         self.dispatcher.add_handler(MessageHandler(Filters.text, menu.menu_message))
         self.dispatcher.add_handler(MessageHandler(Filters.location, menu.location_message))
         self.dispatcher.add_handler(MessageHandler(Filters.command, handlers.unknown))
-        # Time menu handlers
-        self.dispatcher.add_handler(CallbackQueryHandler(menu.time1, pattern='time1'))
-        self.dispatcher.add_handler(CallbackQueryHandler(menu.time2, pattern='time2'))
-        self.dispatcher.add_handler(CallbackQueryHandler(menu.time3, pattern='time3'))
-        self.dispatcher.add_handler(CallbackQueryHandler(menu.time4, pattern='time4'))
+        # Comment menu handlers
+        self.dispatcher.add_handler(CallbackQueryHandler(menu.no_comments, pattern='no_comments'))
 
         # Starting the bot
         self.updater.start_polling()
@@ -114,8 +111,8 @@ class OrdersManager:
             TAXI_FROM_LOCATION: '',
             TAXI_TO: '',
             TAXI_TO_LOCATION: '',
-            TAXI_TIME: '',
-            TAXI_CONTACT: ''
+            TAXI_CONTACT: '',
+            TAXI_COMMENT: ''
         }
         self.db_orders.insert(new_order)
         return new_order.get('order_id')
@@ -138,7 +135,10 @@ class OrdersManager:
         return self.db_orders.find({'user_id': user_id, 'status': 'open'})
 
     def generate_order_message(self, order: dict) -> str:
-        return f'[№{order.get("order_id")}] {order.get(TAXI_FROM)} -> {order.get(TAXI_TO)} ({order.get(TAXI_TIME)})'
+        order_message = f'[№{order.get("order_id")}] {order.get(TAXI_FROM)} -> {order.get(TAXI_TO)}'
+        if order.get(TAXI_COMMENT):
+            order_message += f' ({order.get(TAXI_COMMENT)})'
+        return order_message
 
 
 class TelegramMenu:
@@ -268,11 +268,11 @@ class TelegramMenu:
         elif current_step == TAXI_FROM:
             self.taxi_from_handler(user_id, user_message, '', context)
         elif current_step == TAXI_TO:
-            self.taxi_to_handler(user_id, user_message, '', update)
-        elif current_step == TAXI_TIME:
-            self.taxi_time_handler(user_id, user_message, context)
+            self.taxi_to_handler(user_id, user_message, '', context)
         elif current_step == TAXI_CONTACT:
-            self.taxi_contact_handler(user_id, user_message, context)
+            self.taxi_contact_handler(user_id, user_message, update)
+        elif current_step == TAXI_COMMENT:
+            self.taxi_comment_handler(user_id, user_message, context)
 
     def taxi_from_handler(self, user_id: str, address: str, full_location: str, context) -> None:
 
@@ -290,41 +290,18 @@ class TelegramMenu:
         self.user_manager.set_user_field(user_id, 'current_order_id', order_id)
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_TO)
 
+        user_language = self.user_manager.get_user_field(user_id, 'language')
         context.bot.send_message(chat_id=user_id,
-                                 text=ALL_TEXT.get('taxi_to').get(self.user_manager.get_user_field(user_id, 'language')),
+                                 text=ALL_TEXT.get('taxi_to').get(user_language),
                                  parse_mode=ParseMode.HTML)
 
-    def taxi_to_handler(self, user_id: str, address: str, full_location: str, update) -> None:
+    def taxi_to_handler(self, user_id: str, address: str, full_location: str, context) -> None:
 
         order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-
-        user_language = self.user_manager.get_user_field(user_id, 'language')
-        text_time = ALL_TEXT.get('taxi_time')
 
         self.orders_manager.set_order_field(order_id, TAXI_TO, address)
         self.orders_manager.set_order_field(order_id, TAXI_TO_LOCATION, full_location)
 
-        self.user_manager.set_user_field(user_id, 'current_step', TAXI_TIME)
-
-        keyboard = [
-            [
-                InlineKeyboardButton(text_time.get(f'time1_{user_language}'), callback_data='time1')
-            ],
-            [
-                InlineKeyboardButton(text_time.get(f'time2_{user_language}'), callback_data='time2'),
-                InlineKeyboardButton(text_time.get(f'time3_{user_language}'), callback_data='time3'),
-                InlineKeyboardButton(text_time.get(f'time4_{user_language}'), callback_data='time4')
-            ]
-        ]
-        update.message.reply_text(text=ALL_TEXT.get('taxi_time').get(self.user_manager.get_user_field(user_id, 'language')),
-                                  reply_markup=InlineKeyboardMarkup(keyboard),
-                                  parse_mode=ParseMode.HTML)
-
-    def taxi_time_handler(self, user_id: str, user_message: str, context) -> None:
-
-        order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
-
-        self.orders_manager.set_order_field(order_id, TAXI_TIME, user_message)
         self.user_manager.set_user_field(user_id, 'current_step', TAXI_CONTACT)
 
         # Checking if username is hide
@@ -337,14 +314,12 @@ class TelegramMenu:
                                  text=message_text,
                                  parse_mode=ParseMode.HTML)
 
-    def taxi_contact_handler(self, user_id: str, user_message: str, context) -> None:
+    def taxi_contact_handler(self, user_id: str, user_message: str, update) -> None:
 
         order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
 
         self.orders_manager.set_order_field(order_id, TAXI_CONTACT, user_message)
-
-        self.user_manager.set_user_field(user_id, 'current_step', '')
-        self.user_manager.set_user_field(user_id, 'current_order_id', '')
+        self.user_manager.set_user_field(user_id, 'current_step', TAXI_COMMENT)
 
         # Updating contacts
         current_contacts = self.user_manager.get_user_field(user_id, 'contacts')
@@ -352,10 +327,31 @@ class TelegramMenu:
             current_contacts.append(user_message)
         self.user_manager.set_user_field(user_id, 'contacts', current_contacts)
 
+        user_language = self.user_manager.get_user_field(user_id, 'language')
+        text_comment = ALL_TEXT.get('taxi_comment')
+        keyboard = [
+            [
+                InlineKeyboardButton(text_comment.get(f'button_{user_language}'), callback_data='no_comments')
+            ]
+        ]
+        update.message.reply_text(text=text_comment.get(user_language),
+                                  reply_markup=InlineKeyboardMarkup(keyboard),
+                                  parse_mode=ParseMode.HTML)
+
+    def taxi_comment_handler(self, user_id: str, user_message: str, context) -> None:
+
+        order_id = self.user_manager.get_user_field(user_id, 'current_order_id')
+
+        self.orders_manager.set_order_field(order_id, TAXI_COMMENT, user_message)
+
+        self.user_manager.set_user_field(user_id, 'current_step', '')
+        self.user_manager.set_user_field(user_id, 'current_order_id', '')
+
         self.orders_manager.set_order_field(order_id, 'status', 'open')
 
+        user_language = self.user_manager.get_user_field(user_id, 'language')
         context.bot.send_message(chat_id=user_id,
-                                 text=ALL_TEXT.get('open_order').get(self.user_manager.get_user_field(user_id, 'language')))
+                                 text=ALL_TEXT.get('open_order').get(user_language))
 
     def get_address_from_location(self, latitude: str, longitude: str) -> str:
 
@@ -378,49 +374,13 @@ class TelegramMenu:
         else:
             return 'Не определен'
 
-    def time1(self, update, context) -> None:
+    def no_comments(self, update, context) -> None:
         
         query = update.callback_query
         query.answer()
 
         user_id = update.effective_chat.id
-        self.taxi_time_handler(user_id, 'Ближайшее время', context)
-
-    def time2(self, update, context) -> None:
-
-        query = update.callback_query
-        query.answer()
-
-        user_id = update.effective_chat.id
-
-        current_time = datetime.now()
-        final_time = current_time + timedelta(minutes=15)
-
-        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
-
-    def time3(self, update, context) -> None:
-        
-        query = update.callback_query
-        query.answer()
-
-        user_id = update.effective_chat.id
-
-        current_time = datetime.now()
-        final_time = current_time + timedelta(minutes=20)
-
-        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
-    
-    def time4(self, update, context) -> None:
-        
-        query = update.callback_query
-        query.answer()
-
-        user_id = update.effective_chat.id
-
-        current_time = datetime.now()
-        final_time = current_time + timedelta(minutes=25)
-
-        self.taxi_time_handler(user_id, final_time.strftime("%H:%M"), context)
+        self.taxi_comment_handler(user_id, '', context)
 
 
 class TelegramHandlers:

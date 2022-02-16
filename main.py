@@ -104,11 +104,15 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
     # Route
     order_from_to = f'<a href="{generate_route_url(from_message, to_message, from_location, to_location, mapmd_token)}"> ➡️ </a>'
 
-    return f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
-           f'{order_from} {order_from_to} {order_to}\n' \
-           f'🕓 Время: {order.get("time")}\n' \
-           f'📞 Связь: {order.get("contacts")}\n' \
-           f'💬 @{order.get("user_name")}'
+    message = f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
+              f'{order_from} {order_from_to} {order_to}\n' \
+              f'📞 Связь: {order.get("contacts")}\n'
+    if order.get("comment"):
+        message += f'🕓 Комментарий: {order.get("comment")}\n'
+
+    message += f'💬 @{order.get("user_name")}'
+
+    return message
 
 
 def convert_address_url(address: str) -> str:

@@ -17,23 +17,17 @@
     "ru": "<b>КУДА</b> поедем?\n(<b>геопозиция или сообщение</b>)",
     "ro": "<b>UNDE</b> mergem?\n(<b>geolocația sau mesaj</b>)"
   },
-  "taxi_time": {
-    "ru": "<b>ВО СКОЛЬКО</b> подъехать?\n(вариант или сообщение)",
-    "ro": "<b>LA CE ORĂ</b> trebuie să vin?\n(opțiune sau mesaj)",
-    "time1_ru": "Ближайшее время",
-    "time1_ro": "Mai curând",
-    "time2_ru": "15 мин",
-    "time2_ro": "15 min",
-    "time3_ru": "20 мин",
-    "time3_ro": "20 min",
-    "time4_ru": "25 мин",
-    "time4_ro": "25 min"
-  },
   "taxi_contact": {
     "ru": "Как с Вами связаться?",
     "ro": "Cum să vă contactăm?",
     "special_ru": "\n⚠️ <b>Ваш логин скрыт из-за настроек конфиденциальности, поэтому просьба ОБЯЗАТЕЛЬНО указать номер телефона для связи!</b>",
     "special_ro": "\n⚠️ <b>Datele voastre sunt ascunse din cauza setărilor de confidențialitate, deci e NECESAR să indica un număr de telefon de contact!</b>"
+  },
+  "taxi_comment": {
+    "ru": "Оставьте <b>комментарий</b> к заказу, если необходимо",
+    "ro": "Lasați un <b>comentariu</b> dacă trebuie",
+    "button_ru": "Без комментариев",
+    "button_ro": "Fără comentarii"
   },
   "open_order": {
     "ru": "\uD83D\uDD14 Заявка отправлена! Ожидайте ответа...",
