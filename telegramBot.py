@@ -39,7 +39,7 @@ class TelegramBot:
             file.close()
 
         self.database = database
-        self.user_manager = UserManager(self.database.db_user_info)
+        self.user_manager = UserManager(self.database.db_user_info, self.database.db_blacklist)
         self.orders_manager = OrdersManager(database.db_orders)
 
         # Main telegram UPDATER
@@ -69,8 +69,9 @@ class TelegramBot:
 
 class UserManager:
 
-    def __init__(self, db_user_info):
+    def __init__(self, db_user_info, db_blacklist):
         self.db_user_info = db_user_info
+        self.db_blacklist = db_blacklist
 
     def create_user(self, current_user: dict) -> None:
         user_link = current_user.link
@@ -95,6 +96,9 @@ class UserManager:
     def set_user_field(self, user_id: str, field: str, new_value: str | list) -> None:
         value_to_update = {'$set': {field: new_value}}
         self.db_user_info.update({'user_id': user_id}, value_to_update)
+
+    def user_banned(self, user_id: str) -> bool:
+        return self.db_blacklist.find({'user_id': user_id}).count() > 0
 
 
 class OrdersManager:
@@ -184,6 +188,10 @@ class TelegramMenu:
 
         main_menu_text = ALL_TEXT.get('main_menu')
 
+        # Blacklist check
+        if self.user_manager.user_banned(user_id):
+            return
+
         if user_message == main_menu_text.get('menu1_ru') or user_message == main_menu_text.get('menu1_ro'):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=ALL_TEXT.get('taxi_from').get(user_language),
@@ -267,7 +275,7 @@ class TelegramMenu:
             if user_link:
                 user_name = user_link.replace('https://t.me/', '@')
             else:
-                user_name = 'скрыто пользователем'
+                user_name = 'СКРЫТО'
 
             question = f'<b>Поступил вопрос/предложение от {user_name} ({user_id})</b>\n\n' \
                        f'{user_message}'
