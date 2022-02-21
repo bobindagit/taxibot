@@ -21,6 +21,12 @@ with open('all_text.json', 'r', encoding='utf-8') as file:
     ALL_TEXT = json.load(file)
     file.close()
 
+# ADMIN GROUP ID
+with open('settings.json', 'r') as file:
+    file_data = json.load(file)
+    ADMIN_GROUP_ID = file_data.get('bot_admin_group_id')
+    file.close()
+
 
 class TelegramBot:
 
@@ -224,8 +230,12 @@ class TelegramMenu:
                                      text=ALL_TEXT.get('language_change').get(new_language),
                                      reply_markup=reply_markup)
         elif user_message == main_menu_text.get('menu4_ru') or user_message == main_menu_text.get('menu4_ro'):
+            message_for_user = ALL_TEXT.get('contacts').get(user_language)
+            if not self.user_manager.get_user_field(user_id, 'link'):
+                message_for_user += '\n' + ALL_TEXT.get('taxi_contact').get(f'special_{user_language}')
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=ALL_TEXT.get('contacts').get(user_language))
+                                     text=message_for_user,
+                                     parse_mode=ParseMode.HTML)
             self.user_manager.set_user_field(user_id, 'current_step', QUESTION)
         elif len(current_step) != 0:
             self.message_handler(user_id, user_message, current_step, update, context)
@@ -263,6 +273,10 @@ class TelegramMenu:
                        f'{user_message}'
             # bobtb
             context.bot.send_message(chat_id='360152058',
+                                     text=question,
+                                     parse_mode=ParseMode.HTML)
+            # admins chat
+            context.bot.send_message(chat_id=ADMIN_GROUP_ID,
                                      text=question,
                                      parse_mode=ParseMode.HTML)
         elif current_step == TAXI_FROM:

@@ -14,6 +14,7 @@ with open('settings.json', 'r') as file:
     ADMIN_GROUP_ID = file_data.get('bot_admin_group_id')
     file.close()
 
+
 class TelegramChatBot:
 
     def __init__(self, database):
