@@ -121,11 +121,7 @@ class TelegramChatBot:
 
     def get_orders(self, status_name: str) -> list:
 
-        if status_name == 'declined':
-            flag_type = 'drivers_notification_declined_sent'
-        else:
-            flag_type = 'drivers_notification_sent'
-
+        flag_type = 'drivers_notification_sent'
         return self.database.db_orders.find({'status': status_name, flag_type: False})
 
     def accept_order(self, update, context) -> None:

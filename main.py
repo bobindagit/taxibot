@@ -70,11 +70,8 @@ def main():
         # Declined orders
         declined_orders = telegram_chat_bot.get_orders('declined')
         for order in declined_orders:
-            telegram_chat_bot.updater.bot.edit_message_text(chat_id=telegram_chat_bot.bot_chat_id,
-                                                            message_id=order.get('message_id'),
-                                                            text='❌ <b>ЗАКАЗ ОТМЕНЕН</b> ❌',
-                                                            parse_mode=ParseMode.HTML)
-            telegram_bot.orders_manager.set_order_field(order.get('order_id'), 'drivers_notification_declined_sent', True)
+            telegram_chat_bot.updater.bot.delete_message(chat_id=telegram_chat_bot.bot_chat_id,
+                                                         message_id=order.get('message_id'))
 
 
 def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
