@@ -100,10 +100,8 @@ def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:
         order_to = f'<a href="https://yandex.ru/maps/?l=map&text={convert_address_url(to_message)}">{to_message}</a>'
 
     # Route
-    order_from_to = f'<a href="{generate_route_url(from_message, to_message, from_location, to_location, mapmd_token)}"> ➡️ </a>'
-
     message = f'‼️ <b>Новый заказ</b> ‼️ №{order.get("order_id")}\n\n' \
-              f'{order_from} {order_from_to} {order_to}\n' \
+              f'{order_from} ➡️ {order_to}\n' \
               f'📞 Связь: {order.get("contacts")}\n'
 
     if order.get("user_name"):

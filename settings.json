@@ -3,6 +3,7 @@
   "bot_token_drivers": "*",
   "bot_group_id": "*",
   "bot_admin_group_id": "*",
+  "bot_admin_group_orders_id": "*",
   "mapmd_token": "*",
   "mongodb_connection": "*"
 }

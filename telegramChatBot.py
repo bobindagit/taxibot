@@ -12,6 +12,7 @@ from telegram.ext import (
 with open('settings.json', 'r') as file:
     file_data = json.load(file)
     ADMIN_GROUP_ID = file_data.get('bot_admin_group_id')
+    ADMIN_GROUP_ORDERS_ID = file_data.get('bot_admin_group_orders_id')
     file.close()
 
 
@@ -146,7 +147,7 @@ class TelegramChatBot:
         query.answer()
         query.message.delete()
         message_for_admins = message.replace('Новый заказ', 'Заказ') + f'\n🚕 <b>Водитель: {driver_name}</b>'
-        self.updater.bot.send_message(chat_id=ADMIN_GROUP_ID,
+        self.updater.bot.send_message(chat_id=ADMIN_GROUP_ORDERS_ID,
                                       text=message_for_admins,
                                       parse_mode=ParseMode.HTML,
                                       disable_web_page_preview=True)
