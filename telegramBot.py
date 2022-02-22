@@ -271,22 +271,10 @@ class TelegramMenu:
     def message_handler(self, user_id: str, user_message: str, current_step: str, update, context) -> None:
 
         if current_step == QUESTION:
-            user_link = self.user_manager.get_user_field(user_id, 'link')
-            if user_link:
-                user_name = user_link.replace('https://t.me/', '@')
-            else:
-                user_name = 'СКРЫТО'
-
-            question = f'<b>Поступил вопрос/предложение от {user_name} ({user_id})</b>\n\n' \
-                       f'{user_message}'
-            # bobtb
-            context.bot.send_message(chat_id='360152058',
-                                     text=question,
-                                     parse_mode=ParseMode.HTML)
-            # admins chat
-            context.bot.send_message(chat_id=ADMIN_GROUP_ID,
-                                     text=question,
-                                     parse_mode=ParseMode.HTML)
+            # Forward message to admins group
+            context.bot.forward_message(chat_id=ADMIN_GROUP_ID,
+                                        from_chat_id=update.message.chat_id,
+                                        message_id=update.message.message_id)
         elif current_step == TAXI_FROM:
             self.taxi_from_handler(user_id, user_message, '', context)
         elif current_step == TAXI_TO:
