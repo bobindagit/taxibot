@@ -72,6 +72,7 @@ def main():
         for order in declined_orders:
             telegram_chat_bot.updater.bot.delete_message(chat_id=telegram_chat_bot.bot_chat_id,
                                                          message_id=order.get('message_id'))
+            telegram_bot.orders_manager.set_order_field(order.get('order_id'), 'drivers_notification_declined_sent', True)
 
 
 def generate_message_for_drivers(order: dict, mapmd_token: str) -> str:

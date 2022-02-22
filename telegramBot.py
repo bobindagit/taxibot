@@ -113,6 +113,7 @@ class OrdersManager:
             'status': 'new',
             'driver_name': '',
             'drivers_notification_sent': False,
+            'drivers_notification_declined_sent': False,
             'user_notification_sent': False,
             TAXI_FROM: '',
             TAXI_FROM_LOCATION: '',
