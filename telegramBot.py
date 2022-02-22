@@ -237,8 +237,6 @@ class TelegramMenu:
                                      reply_markup=reply_markup)
         elif user_message == main_menu_text.get('menu4_ru') or user_message == main_menu_text.get('menu4_ro'):
             message_for_user = ALL_TEXT.get('contacts').get(user_language)
-            if not self.user_manager.get_user_field(user_id, 'link'):
-                message_for_user += '\n' + ALL_TEXT.get('taxi_contact').get(f'special_{user_language}')
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=message_for_user,
                                      parse_mode=ParseMode.HTML)
