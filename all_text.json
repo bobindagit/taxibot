@@ -6,8 +6,8 @@
     "menu2_ro": "Anulare",
     "menu3_ru": "Цены",
     "menu3_ro": "Prețuri",
-    "menu4_ru": "Контакты",
-    "menu4_ro": "Contacte"
+    "menu4_ru": "Вопрос/Жалоба",
+    "menu4_ro": "Întrebare/Reclamatie"
   },
   "taxi_from": {
     "ru": "<b>ОТКУДА</b> поедем?\n(<b>геопозиция или сообщение</b>)",
