@@ -89,7 +89,7 @@ class UserManager:
         self.db_user_info.remove({'user_id': user_id})
 
     def get_user_field(self, user_id: str, field: str) -> str | list:
-        return self.db_user_info.find({'user_id': user_id})[0].get(field)
+        return self.db_user_info.find({'user_id': user_id}).next().get(field)
 
     def set_user_field(self, user_id: str, field: str, new_value: str | list) -> None:
         value_to_update = {'$set': {field: new_value}}
@@ -137,7 +137,7 @@ class OrdersManager:
         self.db_orders.update({'order_id': order_id}, value_to_update)
 
     def get_order_info(self, order_id: str) -> dict:
-        return self.db_orders.find({'order_id': order_id})[0]
+        return self.db_orders.find({'order_id': order_id}).next()
 
     def get_open_orders(self, user_id: str) -> list:
         return self.db_orders.find({'user_id': user_id, 'status': 'open'})
